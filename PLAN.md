@@ -82,7 +82,7 @@ Caveat to verify in Phase 0: on recent macOS versions, ScreenCaptureKit-based ca
 - **Phase 0 — spike:** ✅ per-app audio capture, app picker, stealth, STT eval harness.
 - **Phase 1 — MVP:** ✅ live transcript, Claude/Codex/API providers, Assist/Ask/Summary overlay, presets, hotkeys.
 - **Phase 2 — meetings:** explicit **Mulai meeting / Selesai** flow (capture + live AI + recording start together); per-meeting **context files** (multiple PDF/DOCX/TXT/MD) with retrieval; automatic **notulen** after the meeting; export DOCX/MD + **share to WhatsApp**; meeting **history**, search and **ask a past meeting**; HR interview pack; UU PDP consent reminder.
-- **Phase 3:** live translation; browser tab-capture extension; optional TTS; echo suppression; partial (in-progress) transcript; auto-update. ~~Code signing~~ — not needed (personal use).
+- **Phase 3:** ✅ partial (in-progress) transcript; ✅ live translation. Still open: browser tab-capture extension; optional TTS; echo suppression; auto-update. ~~Code signing~~ — not needed (personal use).
 - **Phase 4 — UI design (last):** first produce **several visual design previews** to choose from, then implement the chosen design.
 - **Later:** Linux (PipeWire per-app capture); English UI/STT.
 
@@ -151,3 +151,14 @@ Known gaps / next:
 - Retrieval is keyword (BM25) only; add multilingual embeddings (bge-m3 / e5) for paraphrased questions.
 - First run: macOS microphone / audio permission prompts block "Mulai meeting" until answered.
 - Overlay window opens over the main window; give it a better default position (bottom-right).
+
+## Phase 3 status (2026-11-12) — live text + translation
+
+| Item | Status | Evidence |
+|---|---|---|
+| Partial transcript | ✅ verified in STT pipeline | `REALTIME=1` transcribe example on `sintetis-rapat`: a partial about every 1 s (~1.2 s whisper time each), final line replaces it. Partials are skipped while final segments are queued, so finals never wait |
+| Live translation (ID ↔ EN) | ✅ provider call verified | Claude CLI on Haiku: ~2 s per line; one line at a time, in order; shown in italics under each line |
+| Settings | ✅ | `translate_to` ("" / en / id) in meeting setup and Settings; `live_partials` toggle |
+| In-app check with real meeting audio | ⚠️ not done | frontend type-checks; not yet clicked through in the bundled app |
+
+Known gaps: translations are not saved to history or exports; the overlay shows neither partials nor translations; partials add GPU load (whisper re-runs the open utterance each second).

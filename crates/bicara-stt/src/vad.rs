@@ -156,6 +156,12 @@ impl Segmenter {
         })
     }
 
+    /// The utterance still being spoken: samples so far and its start time (seconds).
+    pub fn open(&self) -> Option<(&[f32], f64)> {
+        self.in_speech
+            .then(|| (&self.cur[..], self.cur_start_frame as f64 * FRAME as f64 / 16_000.0))
+    }
+
     pub fn flush(&mut self) -> Option<SpeechSegment> {
         if self.in_speech {
             self.close()

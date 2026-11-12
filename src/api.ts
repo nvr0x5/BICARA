@@ -13,7 +13,7 @@ export type AudioApp = {
 
 export type Level = { source: "app" | "mic"; rms: number; peak: number };
 
-export type Utterance = { source: "app" | "mic"; text: string; start: number; end: number; latency_ms: number };
+export type Utterance = { source: "app" | "mic"; text: string; start: number; end: number; latency_ms: number; partial?: boolean };
 
 export type ProviderConfig =
   | { kind: "claude_cli"; model: string; binary?: string | null }
@@ -36,6 +36,8 @@ export type Settings = {
   language: "id" | "en" | "auto";
   mic_device: string | null;
   ui_language: "id" | "en";
+  translate_to: "" | "en" | "id";
+  live_partials: boolean;
 };
 
 export type Meeting = {
@@ -125,16 +127,31 @@ export function useLevels() {
 }
 
 /** Live transcript (initial fetch + streaming updates). */
+export const lineKey = (u: { source: string; start: number }) => `${u.source}|${u.start.toFixed(2)}`;
+
+/** Final transcript lines, in-progress text per speaker, and live translations by line key. */
 export function useTranscript() {
   const [lines, setLines] = useState<Utterance[]>([]);
+  const [partials, setPartials] = useState<Record<string, Utterance>>({});
+  const [translations, setTranslations] = useState<Record<string, string>>({});
   useEffect(() => {
     api.getTranscript().then(setLines);
-    const un = listen<Utterance>("transcript", (e) => setLines((l) => [...l, e.payload]));
+    const uns = [
+      listen<Utterance>("transcript", (e) => {
+        setLines((l) => [...l, e.payload]);
+        setPartials(({ [e.payload.source]: _, ...rest }) => rest);
+      }),
+      listen<Utterance>("transcript-partial", (e) => setPartials((p) => ({ ...p, [e.payload.source]: e.payload }))),
+      listen<{ source: string; start: number; text: string }>("translation", (e) =>
+        setTranslations((t) => ({ ...t, [lineKey(e.payload)]: e.payload.text })),
+      ),
+      listen("meeting-state", () => setPartials({})),
+    ];
     return () => {
-      un.then((f) => f());
+      uns.forEach((u) => u.then((f) => f()));
     };
   }, []);
-  return [lines, setLines] as const;
+  return [lines, setLines, partials, translations] as const;
 }
 
 export type AiAnswer = {

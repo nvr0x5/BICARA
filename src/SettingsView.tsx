@@ -210,6 +210,14 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
             </select>
           </label>
           <label className="field">
+            <span>{t("Terjemahan langsung")}</span>
+            <select value={draft.translate_to ?? ""} onChange={(e) => setDraft({ ...draft, translate_to: e.target.value as Settings["translate_to"] })}>
+              <option value="">{t("Mati")}</option>
+              <option value="en">{t("Ke English")}</option>
+              <option value="id">{t("Ke Bahasa Indonesia")}</option>
+            </select>
+          </label>
+          <label className="field">
             <span>{t("Mikrofon")}</span>
             <select value={draft.mic_device ?? ""} onChange={(e) => setDraft({ ...draft, mic_device: e.target.value || null })}>
               <option value="">{t("Default sistem")}</option>
@@ -221,6 +229,11 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
             </select>
           </label>
         </div>
+        <label className="check">
+          <input type="checkbox" checked={draft.live_partials ?? true} onChange={(e) => setDraft({ ...draft, live_partials: e.target.checked })} />
+          {t("Tampilkan teks sementara saat orang masih bicara")}
+        </label>
+        <p className="hint">{t("Terjemahan memakai penyedia AI (Haiku untuk langganan Claude), satu baris setiap kali.")}</p>
         <p className="hint">{t("“Otomatis” cocok untuk meeting campuran, tapi sedikit kurang akurat dibanding memilih satu bahasa.")}</p>
       </section>
 

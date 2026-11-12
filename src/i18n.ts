@@ -37,6 +37,12 @@ const EN: Record<string, string> = {
   "Mikrofon saya": "My microphone",
   "Mikrofon (“Saya”)": "Microphone (“Me”)",
   "Bahasa percakapan": "Conversation language",
+  "Terjemahan langsung": "Live translation",
+  "Mati": "Off",
+  "Ke English": "To English",
+  "Ke Bahasa Indonesia": "To Indonesian",
+  "Tampilkan teks sementara saat orang masih bicara": "Show in-progress text while someone is still speaking",
+  "Terjemahan memakai penyedia AI (Haiku untuk langganan Claude), satu baris setiap kali.": "Translation uses your AI provider (Haiku on a Claude subscription), one line at a time.",
   "Otomatis (ID / EN)": "Automatic (ID / EN)",
   "Untuk Google Meet pilih browser-nya. Aplikasi baru muncul setelah memakai audio.":
     "For Google Meet, pick your browser. An app appears here once it has used audio.",

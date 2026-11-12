@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useT, presetName } from "./i18n";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { api, AudioApp, Doc, fmtTime, Meeting as M, Settings, useAnswers, useLastQuestion, useLevels, useTranscript } from "./api";
+import { api, AudioApp, Doc, fmtTime, lineKey, Meeting as M, Settings, useAnswers, useLastQuestion, useLevels, useTranscript } from "./api";
 import { Meter } from "./Meter";
 import { ActionBar, AnswerCard } from "./AiPanel";
 import { Markdown } from "./Markdown";
@@ -49,7 +49,7 @@ export default function Meeting({
   const [prepId, setPrepId] = useState<number | null>(null);
   const [mics, setMics] = useState<string[]>([]);
   const levels = useLevels();
-  const [lines, setLines] = useTranscript();
+  const [lines, setLines, partials, translations] = useTranscript();
   const answers = useAnswers();
   const question = useLastQuestion();
   const endRef = useRef<HTMLDivElement>(null);
@@ -97,7 +97,7 @@ export default function Meeting({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [lines.length]);
+  }, [lines.length, partials, translations]);
 
   const ensureDraft = async (): Promise<M> => {
     if (draft) return draft;
@@ -258,6 +258,14 @@ export default function Meeting({
                 <option value="auto">{t("Otomatis (ID / EN)")}</option>
               </select>
             </label>
+            <label className="field">
+              <span>{t("Terjemahan langsung")}</span>
+              <select value={settings?.translate_to ?? ""} onChange={(e) => update({ translate_to: e.target.value as Settings["translate_to"] })}>
+                <option value="">{t("Mati")}</option>
+                <option value="en">{t("Ke English")}</option>
+                <option value="id">{t("Ke Bahasa Indonesia")}</option>
+              </select>
+            </label>
           </div>
           <p className="hint">{t("Untuk Google Meet pilih browser-nya. Aplikasi baru muncul setelah memakai audio.")}</p>
         </section>
@@ -399,6 +407,14 @@ export default function Meeting({
                 <span className="who">{l.source === "mic" ? t("Saya") : t("Mereka")}</span>
                 <span className="ts">{fmtTime(l.start)}</span>
                 <p>{l.text}</p>
+                {translations[lineKey(l)] && <p className="tr">{translations[lineKey(l)]}</p>}
+              </div>
+            ))}
+            {Object.values(partials).map((l) => (
+              <div key={`p-${l.source}`} className={`line partial ${l.source === "mic" ? "me" : "them"}`} aria-live="off">
+                <span className="who">{l.source === "mic" ? t("Saya") : t("Mereka")}</span>
+                <span className="ts">{fmtTime(l.start)}</span>
+                <p>{l.text}…</p>
               </div>
             ))}
             <div ref={endRef} />

@@ -45,6 +45,10 @@ pub struct Settings {
     pub mic_device: Option<String>,
     /// App interface language: "id" or "en".
     pub ui_language: String,
+    /// Live translation of each transcript line: "" (off), "en" or "id".
+    pub translate_to: String,
+    /// Show in-progress text while someone is still speaking.
+    pub live_partials: bool,
 }
 
 impl Default for Settings {
@@ -65,6 +69,8 @@ impl Default for Settings {
             language: "id".into(),
             mic_device: None,
             ui_language: "id".into(),
+            translate_to: String::new(),
+            live_partials: true,
         }
     }
 }

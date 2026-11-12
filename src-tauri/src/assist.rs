@@ -170,6 +170,12 @@ pub fn transcript_text(lines: &[Utterance], max_chars: usize) -> String {
 /// Called by the STT worker for each finished utterance.
 pub fn on_utterance(app: &AppHandle, u: Utterance) {
     let state = app.state::<AppState>();
+    if u.partial {
+        if state.settings.lock().unwrap().live_partials {
+            let _ = app.emit("transcript-partial", &u);
+        }
+        return;
+    }
     state.transcript.lock().unwrap().push(u.clone());
     if let Some(mid) = *state.current_meeting.lock().unwrap() {
         let _ = state
@@ -179,6 +185,10 @@ pub fn on_utterance(app: &AppHandle, u: Utterance) {
             .add_utterance(mid, &u.source, &u.text, u.start, u.end);
     }
     let _ = app.emit("transcript", &u);
+    let target = state.settings.lock().unwrap().translate_to.clone();
+    if !target.is_empty() {
+        translate(app.clone(), &u, target);
+    }
 
     if u.source == "app" && looks_like_question(&u.text) {
         let _ = app.emit("question-detected", &u.text);
@@ -517,4 +527,57 @@ mod tests {
             assert!(!looks_like_question(s), "{s}");
         }
     }
+}
+
+// ---------------------------------------------------------------- live translation
+
+#[derive(Clone, Serialize)]
+struct Translation {
+    source: String,
+    start: f64,
+    text: String,
+}
+
+/// One translation at a time, in transcript order (keeps CLI processes and rate limits sane).
+static TRANSLATE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Translates one finished transcript line and emits `translation`.
+/// Uses the fastest model of the configured provider family (Haiku for Claude subscription).
+fn translate(app: AppHandle, u: &Utterance, target: String) {
+    let state = app.state::<AppState>();
+    let mut cfg = state.settings.lock().unwrap().provider.clone();
+    if let bicara_llm::ProviderConfig::ClaudeCli { model, .. } = &mut cfg {
+        *model = "haiku".into();
+    }
+    let key = cfg.key_account().and_then(|a| crate::settings::api_key(&a));
+    let llm = state.llm.clone();
+    let (source, start, text) = (u.source.clone(), u.start, u.text.clone());
+    let lang = if target == "en" { "English" } else { "Bahasa Indonesia" };
+    let req = ChatRequest {
+        system: format!(
+            "You are a live meeting interpreter. Translate the user's line into natural, concise {lang}. \
+             Keep names, product names and technical terms as they are. If the line is already in {lang}, \
+             return it unchanged. Output only the translation, no quotes or notes."
+        ),
+        user: text,
+        max_tokens: 400,
+    };
+    tauri::async_runtime::spawn(async move {
+        let _turn = TRANSLATE_LOCK.lock().await;
+        let mut sink = |_: &str| {};
+        match llm.complete(&cfg, key.as_deref(), &req, &mut sink).await {
+            Ok(t) if !t.trim().is_empty() => {
+                let _ = app.emit(
+                    "translation",
+                    Translation {
+                        source,
+                        start,
+                        text: t.trim().to_string(),
+                    },
+                );
+            }
+            Ok(_) => {}
+            Err(e) => eprintln!("[bicara] translation failed: {e}"),
+        }
+    });
 }

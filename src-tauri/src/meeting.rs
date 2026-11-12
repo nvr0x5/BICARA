@@ -226,6 +226,7 @@ fn stored_transcript(lines: &[StoredUtterance], max: usize) -> String {
             start: u.start,
             end: u.end,
             latency_ms: 0,
+            partial: false,
         })
         .collect();
     assist::transcript_text(&us, max)

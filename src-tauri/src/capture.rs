@@ -165,6 +165,7 @@ pub fn start_capture(
         Err(e) => (None, Some(e)),
     };
     let transcribing = stt.is_some();
+    let partials = state.settings.lock().unwrap().live_partials;
 
     let mut session = Session {
         app: None,
@@ -178,7 +179,7 @@ pub fn start_capture(
             app.clone(),
             "app",
             dir.join("mereka-app.wav"),
-            stt.as_ref().map(|t| t.feeder("app")),
+            stt.as_ref().map(|t| t.feeder("app").with_partials(partials)),
         );
         session.writers.push(w);
         session.app = Some(AppCapture::start(&id, sink).map_err(|e| e.to_string())?);
@@ -188,7 +189,7 @@ pub fn start_capture(
             app.clone(),
             "mic",
             dir.join("saya-mic.wav"),
-            stt.as_ref().map(|t| t.feeder("mic")),
+            stt.as_ref().map(|t| t.feeder("mic").with_partials(partials)),
         );
         session.writers.push(w);
         let device = state.settings.lock().unwrap().mic_device.clone();

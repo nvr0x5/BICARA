@@ -10,6 +10,8 @@ mod vad;
 pub use resample::Resampler;
 pub use vad::{Segmenter, SpeechSegment};
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Sender};
 use std::thread::JoinHandle;
 
@@ -58,17 +60,26 @@ pub struct Utterance {
     pub end: f64,
     /// Wall-clock time the transcription took.
     pub latency_ms: u64,
+    /// In-progress text for an utterance that is still being spoken; replaced by the final one.
+    pub partial: bool,
 }
 
 struct Job {
     source: String,
     seg: SpeechSegment,
+    partial: bool,
 }
+
+/// Partial (in-progress) transcripts: first after this much speech, then every `PARTIAL_STEP`.
+const PARTIAL_MIN: usize = SAMPLE_RATE as usize * 6 / 5;
+const PARTIAL_STEP: usize = SAMPLE_RATE as usize;
 
 /// Owns the whisper model and transcribes segments from all streams on one worker thread
 /// (whisper is not cheap; serialising keeps the GPU/CPU from thrashing).
 pub struct LiveTranscriber {
     tx: Option<Sender<Job>>,
+    /// Final segments waiting for the worker; partials are only sent/run when this is 0.
+    queued: Arc<AtomicUsize>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -105,6 +116,8 @@ impl LiveTranscriber {
         let ctx = WhisperContext::new_with_params(model_path, cparams)
             .map_err(|e| SttError::Model(e.to_string()))?;
         let (tx, rx) = channel::<Job>();
+        let queued = Arc::new(AtomicUsize::new(0));
+        let q = queued.clone();
         let worker = std::thread::Builder::new()
             .name("bicara-stt".into())
             .spawn(move || {
@@ -116,6 +129,11 @@ impl LiveTranscriber {
                     }
                 };
                 while let Ok(job) = rx.recv() {
+                    if !job.partial {
+                        q.fetch_sub(1, Ordering::SeqCst);
+                    } else if q.load(Ordering::SeqCst) > 0 {
+                        continue; // stale: final work is waiting
+                    }
                     let t0 = std::time::Instant::now();
                     let mut p = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
                     p.set_language(opts.language.as_deref());
@@ -147,7 +165,7 @@ impl LiveTranscriber {
                         }
                     }
                     let text = text.trim().to_string();
-                    if is_hallucination(&text) {
+                    if is_hallucination(&text) || (job.partial && text.len() < 3) {
                         continue;
                     }
                     on_result(Utterance {
@@ -156,12 +174,14 @@ impl LiveTranscriber {
                         start: job.seg.start,
                         end: job.seg.end,
                         latency_ms: t0.elapsed().as_millis() as u64,
+                        partial: job.partial,
                     });
                 }
             })
             .map_err(|e| SttError::Model(e.to_string()))?;
         Ok(Self {
             tx: Some(tx),
+            queued,
             worker: Some(worker),
         })
     }
@@ -174,7 +194,10 @@ impl LiveTranscriber {
             resampler: None,
             segmenter: Segmenter::new(),
             tx: self.tx.clone().expect("transcriber running"),
+            queued: self.queued.clone(),
             buf: Vec::with_capacity(8192),
+            partials: true,
+            last_partial: 0,
         }
     }
 }
@@ -193,31 +216,68 @@ pub struct StreamFeeder {
     resampler: Option<Resampler>,
     segmenter: Segmenter,
     tx: Sender<Job>,
+    queued: Arc<AtomicUsize>,
     buf: Vec<f32>,
+    partials: bool,
+    /// Length (samples) of the open utterance when the last partial was sent.
+    last_partial: usize,
 }
 
 impl StreamFeeder {
+    /// Turn in-progress transcripts on or off (default on).
+    pub fn with_partials(mut self, on: bool) -> Self {
+        self.partials = on;
+        self
+    }
+
+    fn send_final(&mut self, seg: SpeechSegment) {
+        self.last_partial = 0;
+        self.queued.fetch_add(1, Ordering::SeqCst);
+        let _ = self.tx.send(Job {
+            source: self.source.clone(),
+            seg,
+            partial: false,
+        });
+    }
+
     pub fn push(&mut self, samples: &[f32], rate: u32) {
         let rs = self
             .resampler
             .get_or_insert_with(|| Resampler::new(rate, SAMPLE_RATE));
         self.buf.clear();
         rs.process(samples, &mut self.buf);
-        for seg in self.segmenter.push(&self.buf) {
-            let _ = self.tx.send(Job {
-                source: self.source.clone(),
-                seg,
-            });
+        let segs = self.segmenter.push(&self.buf);
+        for seg in segs {
+            self.send_final(seg);
+        }
+        if !self.partials || self.queued.load(Ordering::SeqCst) > 0 {
+            return;
+        }
+        if let Some((samples, start)) = self.segmenter.open() {
+            let n = samples.len();
+            if n < self.last_partial {
+                self.last_partial = 0; // a long utterance was cut and continues
+            }
+            if n >= PARTIAL_MIN && n - self.last_partial >= PARTIAL_STEP {
+                self.last_partial = n;
+                let seg = SpeechSegment {
+                    samples: samples.to_vec(),
+                    start,
+                    end: start + n as f64 / SAMPLE_RATE as f64,
+                };
+                let _ = self.tx.send(Job {
+                    source: self.source.clone(),
+                    seg,
+                    partial: true,
+                });
+            }
         }
     }
 
     /// Flush the last open utterance (call when the stream stops).
     pub fn finish(&mut self) {
         if let Some(seg) = self.segmenter.flush() {
-            let _ = self.tx.send(Job {
-                source: self.source.clone(),
-                seg,
-            });
+            self.send_final(seg);
         }
     }
 }
