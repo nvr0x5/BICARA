@@ -136,10 +136,16 @@ pub async fn download_model(app: AppHandle, file: String) -> Result<(), String> 
 /// Returns the shared transcriber, loading the configured model on first use (takes seconds).
 pub fn transcriber(app: &AppHandle) -> Result<Arc<bicara_stt::LiveTranscriber>, String> {
     let state = app.state::<AppState>();
-    let (model, vocab) = {
+    let (model, vocab, lang) = {
         let s = state.settings.lock().unwrap();
-        (s.stt_model.clone(), s.vocabulary.clone())
+        (
+            s.stt_model.clone(),
+            s.vocabulary.clone(),
+            s.language.clone(),
+        )
     };
+    // The cache key includes the language so switching it reloads the transcriber.
+    let vocab = format!("{lang}|{vocab}");
     let mut slot = state.stt.lock().unwrap();
     if let Some((loaded, vocab_loaded, t)) = slot.as_ref() {
         if *loaded == model && *vocab_loaded == vocab {
@@ -153,8 +159,29 @@ pub fn transcriber(app: &AppHandle) -> Result<Arc<bicara_stt::LiveTranscriber>, 
         ));
     }
     let mut opts = bicara_stt::SttOptions::default();
-    if !vocab.trim().is_empty() {
-        opts.initial_prompt = format!("{} Istilah: {}.", opts.initial_prompt, vocab.trim());
+    let terms = vocab
+        .split_once('|')
+        .map(|(_, v)| v)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    match lang.as_str() {
+        "en" => {
+            opts.language = Some("en".into());
+            opts.initial_prompt = "A business meeting conversation in English.".into();
+        }
+        "auto" => {
+            opts.language = None;
+            opts.initial_prompt = "Percakapan rapat dalam bahasa Indonesia atau English.".into();
+        }
+        _ => {}
+    }
+    if !terms.is_empty() {
+        opts.initial_prompt = format!(
+            "{} {}: {terms}.",
+            opts.initial_prompt,
+            if lang == "en" { "Terms" } else { "Istilah" }
+        );
     }
     let handle = app.clone();
     let t = bicara_stt::LiveTranscriber::new(&path.to_string_lossy(), opts, move |u| {

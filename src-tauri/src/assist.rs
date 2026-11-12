@@ -211,7 +211,13 @@ pub fn clear_transcript(state: State<'_, AppState>) {
 
 pub fn system_prompt(s: &Settings) -> String {
     let p = s.preset();
-    let register = if s.register == "santai" {
+    let register = if s.language == "en" {
+        if s.register == "santai" {
+            "Write all answers in natural, casual-professional English."
+        } else {
+            "Write all answers in polite, formal business English."
+        }
+    } else if s.register == "santai" {
         "Gunakan bahasa Indonesia santai sehari-hari (aku/kamu), tetap sopan dan profesional."
     } else {
         "Gunakan bahasa Indonesia baku dan sopan (Bapak/Ibu, Anda)."
@@ -221,7 +227,7 @@ pub fn system_prompt(s: &Settings) -> String {
          Kamu membantu PENGGUNA secara diam-diam selama percakapan live. Di transkrip, \"Saya\" adalah \
          pengguna dan \"Mereka\" adalah lawan bicara. Transkrip berasal dari speech-to-text otomatis \
          dan bisa salah dengar: tafsirkan maksudnya, jangan mengomentari kesalahan transkrip.\n\
-         {register} Jika lawan bicara memakai bahasa Inggris, jawab dalam bahasa Inggris.\n\
+         {register} Ikuti bahasa yang dipakai lawan bicara (Indonesia atau Inggris) kecuali diminta lain.\n\
          Tulis singkat dan langsung bisa dipakai. Jangan membuka dengan basa-basi. Format markdown \
          sederhana (paragraf pendek dan bullet) saja.",
         p.system_prompt.trim()

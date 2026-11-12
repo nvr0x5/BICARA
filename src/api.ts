@@ -33,6 +33,8 @@ export type Settings = {
   presets: Preset[];
   consent_reminder: boolean;
   keep_audio: boolean;
+  language: "id" | "en" | "auto";
+  mic_device: string | null;
 };
 
 export type Meeting = {
@@ -69,6 +71,7 @@ export const api = {
   setApiKey: (account: string, key: string) => invoke<void>("set_api_key", { account, key }),
   hasApiKey: (account: string) => invoke<boolean>("has_api_key", { account }),
   detectClis: () => invoke<{ claude: string | null; codex: string | null }>("detect_clis"),
+  listMicrophones: () => invoke<string[]>("list_microphones"),
   listModels: () => invoke<ModelInfo[]>("list_models"),
   downloadModel: (file: string) => invoke<void>("download_model", { file }),
   sttLoaded: () => invoke<boolean>("stt_loaded"),
@@ -174,9 +177,13 @@ export function useAnswers() {
 export function useLastQuestion() {
   const [q, setQ] = useState<string | null>(null);
   useEffect(() => {
-    const un = listen<string>("question-detected", (e) => setQ(e.payload));
+    const uns = [
+      listen<string>("question-detected", (e) => setQ(e.payload)),
+      // A meeting started or ended: the previous question no longer applies.
+      listen("meeting-state", () => setQ(null)),
+    ];
     return () => {
-      un.then((f) => f());
+      uns.forEach((u) => u.then((f) => f()));
     };
   }, []);
   return q;

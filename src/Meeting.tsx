@@ -45,6 +45,7 @@ export default function Meeting({
   const [endedId, setEndedId] = useState<number | null>(null);
   const [notulen, setNotulen] = useState<string | null>(null);
   const [prepId, setPrepId] = useState<number | null>(null);
+  const [mics, setMics] = useState<string[]>([]);
   const levels = useLevels();
   const [lines, setLines] = useTranscript();
   const answers = useAnswers();
@@ -66,6 +67,7 @@ export default function Meeting({
 
   useEffect(() => {
     refresh();
+    api.listMicrophones().then(setMics);
     api.sttLoaded().then(setSttReady);
     api.currentMeeting().then((m) => {
       if (m) {
@@ -232,6 +234,27 @@ export default function Meeting({
             <label className="check">
               <input type="checkbox" checked={withMic} onChange={(e) => setWithMic(e.target.checked)} />
               Mikrofon saya
+            </label>
+          </div>
+          <div className="fields">
+            <label className="field">
+              <span>Mikrofon (“Saya”)</span>
+              <select value={settings?.mic_device ?? ""} onChange={(e) => update({ mic_device: e.target.value || null })} disabled={!withMic}>
+                <option value="">Default sistem</option>
+                {mics.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Bahasa percakapan</span>
+              <select value={settings?.language ?? "id"} onChange={(e) => update({ language: e.target.value as Settings["language"] })}>
+                <option value="id">Bahasa Indonesia</option>
+                <option value="en">English</option>
+                <option value="auto">Otomatis (ID / EN)</option>
+              </select>
             </label>
           </div>
           <p className="hint">Untuk Google Meet pilih browser-nya. Aplikasi baru muncul setelah memakai audio.</p>

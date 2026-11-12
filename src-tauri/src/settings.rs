@@ -39,6 +39,10 @@ pub struct Settings {
     pub consent_reminder: bool,
     /// Keep the WAV recordings of each meeting.
     pub keep_audio: bool,
+    /// Conversation language: "id", "en" or "auto" (transcription + AI answers).
+    pub language: String,
+    /// Microphone device name (`None` = system default).
+    pub mic_device: Option<String>,
 }
 
 impl Default for Settings {
@@ -56,6 +60,8 @@ impl Default for Settings {
             presets: builtin_presets(),
             consent_reminder: true,
             keep_audio: true,
+            language: "id".into(),
+            mic_device: None,
         }
     }
 }
@@ -94,6 +100,26 @@ pub fn builtin_presets() -> Vec<Preset> {
              dengan percaya diri dan jujur, gunakan metode STAR (Situasi, Tugas, Aksi, Hasil) \
              untuk pertanyaan perilaku, dan ambil contoh dari CV/pengalaman di konteks. Jangan \
              mengarang pengalaman yang tidak ada di konteks; jika tidak ada, beri kerangka jawaban.",
+        ),
+        p(
+            "interviewer",
+            "Interview kerja (saya pewawancara)",
+            "Pengguna adalah PEWAWANCARA; \"Mereka\" adalah kandidat. Bantu pengguna menggali kandidat: \
+             sarankan pertanyaan lanjutan yang tajam berdasarkan jawaban terakhir (minta contoh konkret, \
+             angka, peran pribadi vs tim), tandai jawaban yang kabur, tidak konsisten, atau tidak sesuai \
+             CV/deskripsi pekerjaan di konteks, dan nilai jawaban secara singkat (kuat / cukup / lemah \
+             beserta alasannya). Saat diminta \"Bantu jawab\", berikan apa yang sebaiknya pewawancara \
+             ucapkan berikutnya. Tetap objektif dan hindari pertanyaan diskriminatif (usia, agama, status \
+             pernikahan, rencana punya anak).",
+        ),
+        p(
+            "klien",
+            "Diskusi klien / konsultasi",
+            "Pengguna adalah konsultan yang berdiskusi dengan klien (mis. scoping proyek). Bantu \
+             menjelaskan dan membela keputusan pengguna dengan alasan teknis yang jelas, jawab \
+             pertanyaan dan kekhawatiran klien dengan jujur (akui risiko residual bila ada, tawarkan \
+             mitigasi atau opsi tambahan), dan pastikan kesepakatan serta asumsi tercatat. Ikuti posisi \
+             dan catatan pengguna di konteks; jangan mengubah posisi pengguna tanpa alasan kuat.",
         ),
         p(
             "webinar",
@@ -210,4 +236,9 @@ pub async fn detect_clis() -> bicara_llm::CliStatus {
         claude: None,
         codex: None,
     })
+}
+
+#[tauri::command]
+pub fn list_microphones() -> Vec<String> {
+    bicara_audio::list_input_devices()
 }

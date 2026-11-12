@@ -11,7 +11,7 @@
 use serde::{Deserialize, Serialize};
 
 mod mic;
-pub use mic::MicCapture;
+pub use mic::{list_input_devices, MicCapture};
 
 #[cfg(target_os = "macos")]
 mod macos;

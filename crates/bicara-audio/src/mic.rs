@@ -18,7 +18,12 @@ fn err(e: impl std::fmt::Display) -> AudioError {
 }
 
 impl MicCapture {
-    pub fn start(mut sink: Sink) -> Result<Self> {
+    pub fn start(sink: Sink) -> Result<Self> {
+        Self::start_with(None, sink)
+    }
+
+    /// Start capturing from the named input device (`None` = system default).
+    pub fn start_with(device: Option<String>, mut sink: Sink) -> Result<Self> {
         let (stop_tx, stop_rx) = mpsc::channel::<()>();
         let (ready_tx, ready_rx) = mpsc::channel::<Result<()>>();
 
@@ -27,8 +32,13 @@ impl MicCapture {
             .spawn(move || {
                 let build = || -> Result<cpal::Stream> {
                     let host = cpal::default_host();
-                    let dev = host
-                        .default_input_device()
+                    let named = device.as_deref().and_then(|want| {
+                        host.input_devices()
+                            .ok()?
+                            .find(|d| d.name().ok().as_deref() == Some(want))
+                    });
+                    let dev = named
+                        .or_else(|| host.default_input_device())
                         .ok_or_else(|| err("tidak ada mikrofon"))?;
                     let cfg = dev.default_input_config().map_err(err)?;
                     let rate = cfg.sample_rate().0;
@@ -95,4 +105,20 @@ impl Drop for MicCapture {
             let _ = t.join();
         }
     }
+}
+
+/// Names of the available microphones / input devices, default first.
+pub fn list_input_devices() -> Vec<String> {
+    let host = cpal::default_host();
+    let default = host.default_input_device().and_then(|d| d.name().ok());
+    let mut names: Vec<String> = host
+        .input_devices()
+        .map(|it| it.filter_map(|d| d.name().ok()).collect())
+        .unwrap_or_default();
+    names.dedup();
+    if let Some(d) = default {
+        names.retain(|n| *n != d);
+        names.insert(0, d);
+    }
+    names
 }

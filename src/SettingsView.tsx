@@ -34,11 +34,13 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState<string | null>(null);
   const [presetId, setPresetId] = useState(settings.active_preset);
+  const [mics, setMics] = useState<string[]>([]);
 
   useEffect(() => setDraft(settings), [settings]);
   useEffect(() => {
     api.detectClis().then(setClis);
     api.listModels().then(setModels);
+    api.listMicrophones().then(setMics);
     const un = listen<{ file: string; downloaded: number; total: number; done: boolean; error: string | null }>("model-download", (e) => {
       const p = e.payload;
       if (p.done) {
@@ -185,6 +187,32 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
             <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={hasKey ? "••••••••" : "tempel API key"} autoComplete="off" />
           </label>
         )}
+      </section>
+
+      <section className="card">
+        <h2>Bahasa & mikrofon</h2>
+        <div className="fields">
+          <label className="field">
+            <span>Bahasa percakapan (transkripsi & jawaban AI)</span>
+            <select value={draft.language} onChange={(e) => setDraft({ ...draft, language: e.target.value as Settings["language"] })}>
+              <option value="id">Bahasa Indonesia</option>
+              <option value="en">English</option>
+              <option value="auto">Otomatis (Indonesia / English)</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Mikrofon</span>
+            <select value={draft.mic_device ?? ""} onChange={(e) => setDraft({ ...draft, mic_device: e.target.value || null })}>
+              <option value="">Default sistem</option>
+              {mics.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className="hint">“Otomatis” cocok untuk meeting campuran, tapi sedikit kurang akurat dibanding memilih satu bahasa.</p>
       </section>
 
       <section className="card">

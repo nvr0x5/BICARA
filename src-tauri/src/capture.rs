@@ -191,7 +191,8 @@ pub fn start_capture(
             stt.as_ref().map(|t| t.feeder("mic")),
         );
         session.writers.push(w);
-        match MicCapture::start(sink) {
+        let device = state.settings.lock().unwrap().mic_device.clone();
+        match MicCapture::start_with(device, sink) {
             Ok(m) => session.mic = Some(m),
             Err(e) => {
                 stop_session(session);

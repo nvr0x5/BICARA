@@ -75,6 +75,7 @@ pub fn run() {
             settings::set_api_key,
             settings::has_api_key,
             settings::detect_clis,
+            settings::list_microphones,
             models::list_models,
             models::download_model,
             models::stt_loaded,
