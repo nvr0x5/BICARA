@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useT, presetName } from "./i18n";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api, AudioApp, Doc, fmtTime, Meeting as M, Settings, useAnswers, useLastQuestion, useLevels, useTranscript } from "./api";
@@ -29,6 +30,7 @@ export default function Meeting({
   assistKey: string;
   onOpenHistory: (id: number) => void;
 }) {
+  const t = useT();
   const [phase, setPhase] = useState<Phase>("setup");
   const [draft, setDraft] = useState<M | null>(null);
   const [title, setTitle] = useState("");
@@ -106,10 +108,10 @@ export default function Meeting({
 
   const addFiles = async () => {
     const exts = await api.docExtensions();
-    const picked = await open({ multiple: true, filters: [{ name: "Dokumen", extensions: exts }] });
+    const picked = await open({ multiple: true, filters: [{ name: t("Dokumen"), extensions: exts }] });
     const paths = Array.isArray(picked) ? picked : picked ? [picked] : [];
     if (!paths.length) return;
-    setBusy("Membaca dokumen…");
+    setBusy(t("Membaca dokumen…"));
     try {
       const m = await ensureDraft();
       const res = await api.addMeetingFiles(m.id, paths);
@@ -138,7 +140,7 @@ export default function Meeting({
 
   const start = async () => {
     setNotice(null);
-    setBusy("Menyiapkan…");
+    setBusy(t("Menyiapkan…"));
     try {
       const m = await ensureDraft();
       if (title.trim() && title.trim() !== m.title) await api.renameMeeting(m.id, title.trim());
@@ -198,18 +200,18 @@ export default function Meeting({
     return (
       <div className="setup">
         <section className="card">
-          <h2>Meeting baru</h2>
+          <h2>{t("Meeting baru")}</h2>
           <div className="fields">
             <label className="field">
-              <span>Judul</span>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="mis. Interview PM — PT Maju" />
+              <span>{t("Judul")}</span>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("mis. Interview PM — PT Maju")} />
             </label>
             <label className="field">
-              <span>Jenis (preset)</span>
+              <span>{t("Jenis (preset)")}</span>
               <select value={presetId} onChange={(e) => setPresetId(e.target.value)} disabled={!!draft}>
                 {settings?.presets.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {presetName(t, p)}
                   </option>
                 ))}
               </select>
@@ -217,30 +219,30 @@ export default function Meeting({
           </div>
           <div className="source-row">
             <label className="field">
-              <span>Aplikasi meeting (audio “Mereka”)</span>
+              <span>{t("Aplikasi meeting (audio “Mereka”)")}</span>
               <select value={appId} onChange={(e) => setAppId(e.target.value)}>
-                <option value="">— hanya mikrofon —</option>
+                <option value="">{t("— hanya mikrofon —")}</option>
                 {apps.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
-                    {a.playing ? " · memutar audio" : ""}
+                    {a.playing ? t(" · memutar audio") : ""}
                   </option>
                 ))}
               </select>
             </label>
             <button className="ghost" onClick={refresh}>
-              Refresh
+              {t("Refresh")}
             </button>
             <label className="check">
               <input type="checkbox" checked={withMic} onChange={(e) => setWithMic(e.target.checked)} />
-              Mikrofon saya
+              {t("Mikrofon saya")}
             </label>
           </div>
           <div className="fields">
             <label className="field">
-              <span>Mikrofon (“Saya”)</span>
+              <span>{t("Mikrofon (“Saya”)")}</span>
               <select value={settings?.mic_device ?? ""} onChange={(e) => update({ mic_device: e.target.value || null })} disabled={!withMic}>
-                <option value="">Default sistem</option>
+                <option value="">{t("Default sistem")}</option>
                 {mics.map((m) => (
                   <option key={m} value={m}>
                     {m}
@@ -249,33 +251,33 @@ export default function Meeting({
               </select>
             </label>
             <label className="field">
-              <span>Bahasa percakapan</span>
+              <span>{t("Bahasa percakapan")}</span>
               <select value={settings?.language ?? "id"} onChange={(e) => update({ language: e.target.value as Settings["language"] })}>
-                <option value="id">Bahasa Indonesia</option>
-                <option value="en">English</option>
-                <option value="auto">Otomatis (ID / EN)</option>
+                <option value="id">{t("Bahasa Indonesia")}</option>
+                <option value="en">{t("English")}</option>
+                <option value="auto">{t("Otomatis (ID / EN)")}</option>
               </select>
             </label>
           </div>
-          <p className="hint">Untuk Google Meet pilih browser-nya. Aplikasi baru muncul setelah memakai audio.</p>
+          <p className="hint">{t("Untuk Google Meet pilih browser-nya. Aplikasi baru muncul setelah memakai audio.")}</p>
         </section>
 
         <section className="card">
           <div className="card-head">
-            <h2>Dokumen konteks</h2>
+            <h2>{t("Dokumen konteks")}</h2>
             <button className="ghost" onClick={addFiles} disabled={!!busy}>
-              Tambah file
+              {t("Tambah file")}
             </button>
           </div>
-          <p className="hint">PDF, Word, PowerPoint, TXT, Markdown — mis. agenda, CV, deskripsi pekerjaan, materi presentasi. AI memakainya saat menjawab.</p>
+          <p className="hint">{t("PDF, Word, PowerPoint, TXT, Markdown — mis. agenda, CV, deskripsi pekerjaan, materi presentasi. AI memakainya saat menjawab.")}</p>
           {docs.length > 0 && (
             <ul className="docs">
               {docs.map((d) => (
                 <li key={d.id}>
                   <span>{d.name}</span>
-                  <span className="hint">{d.chars < 1000 ? `${d.chars} karakter` : `${Math.round(d.chars / 1000)}rb karakter`}</span>
+                  <span className="hint">{d.chars < 1000 ? `${d.chars} ${t("karakter")}` : `${Math.round(d.chars / 1000)}${t("rb karakter")}`}</span>
                   <button className="link" onClick={() => removeDoc(d)}>
-                    Hapus
+                    {t("Hapus")}
                   </button>
                 </li>
               ))}
@@ -284,9 +286,9 @@ export default function Meeting({
           {presetId === "interview" && (
             <div className="row">
               <button className="ghost" onClick={prep} disabled={docs.length === 0 && !preset?.context}>
-                Siapkan jawaban interview
+                {t("Siapkan jawaban interview")}
               </button>
-              <span className="hint">Jawaban STAR untuk 12 pertanyaan HRD umum, dari CV & deskripsi pekerjaan.</span>
+              <span className="hint">{t("Jawaban STAR untuk 12 pertanyaan HRD umum, dari CV & deskripsi pekerjaan.")}</span>
             </div>
           )}
           {prepAnswer && <AnswerCard a={prepAnswer} />}
@@ -296,16 +298,16 @@ export default function Meeting({
           {needConsent && (
             <label className="check">
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              Peserta sudah saya beri tahu bahwa percakapan ini direkam & ditranskrip (UU PDP).
+              {t("Peserta sudah saya beri tahu bahwa percakapan ini direkam & ditranskrip (UU PDP).")}
             </label>
           )}
           <div className="row between">
-            <span className={`status ${sttReady ? "ok" : ""}`}>{sttReady ? "Transkripsi siap" : "Memuat model transkripsi…"}</span>
+            <span className={`status ${sttReady ? "ok" : ""}`}>{sttReady ? t("Transkripsi siap") : t("Memuat model transkripsi…")}</span>
             <button className="primary big" onClick={start} disabled={!!busy || (!appId && !withMic) || (needConsent && !consent)}>
-              {busy ?? "Mulai meeting"}
+              {busy ?? t("Mulai meeting")}
             </button>
           </div>
-          {notice && <p className="notice" role="status">{notice}</p>}
+          {notice && <p className="notice" role="status">{t(notice)}</p>}
         </section>
       </div>
     );
@@ -317,15 +319,15 @@ export default function Meeting({
       <div className="setup">
         <section className="card">
           <div className="card-head">
-            <h2>{phase === "ending" ? "Mengakhiri meeting…" : "Meeting selesai"}</h2>
+            <h2>{phase === "ending" ? t("Mengakhiri meeting…") : t("Meeting selesai")}</h2>
             <div className="row">
               {endedId && (
                 <button className="ghost" onClick={() => onOpenHistory(endedId)}>
-                  Buka di riwayat
+                  {t("Buka di riwayat")}
                 </button>
               )}
               <button className="primary" onClick={reset}>
-                Meeting baru
+                {t("Meeting baru")}
               </button>
             </div>
           </div>
@@ -334,9 +336,9 @@ export default function Meeting({
           ) : notulenStream ? (
             <AnswerCard a={notulenStream} />
           ) : (
-            <p className="thinking">Menyusun notulen…</p>
+            <p className="thinking">{t("Menyusun notulen…")}</p>
           )}
-          {notice && <p className="notice">{notice}</p>}
+          {notice && <p className="notice">{t(notice)}</p>}
         </section>
       </div>
     );
@@ -353,10 +355,10 @@ export default function Meeting({
             <span className="hint">{fmtTime(elapsed)}</span>
           </div>
           {settings && (
-            <div className="segmented" role="group" aria-label="Gaya bahasa">
+            <div className="segmented" role="group" aria-label={t("Gaya bahasa")}>
               {(["formal", "santai"] as const).map((r) => (
                 <button key={r} className={settings.register === r ? "on" : ""} onClick={() => update({ register: r })} aria-pressed={settings.register === r}>
-                  {r === "formal" ? "Formal" : "Santai"}
+                  {r === "formal" ? "Formal" : t("Santai")}
                 </button>
               ))}
             </div>
@@ -364,37 +366,37 @@ export default function Meeting({
           {settings && (
             <label className="check">
               <input type="checkbox" checked={settings.auto_assist} onChange={(e) => update({ auto_assist: e.target.checked })} />
-              Bantu otomatis
+              {t("Bantu otomatis")}
             </label>
           )}
           <button className="danger" onClick={end}>
-            Selesai
+            {t("Selesai")}
           </button>
         </div>
         <div className="meters">
-          <Meter label={app?.name ?? live?.app_name ?? "Mereka"} rms={levels.app?.rms} peak={levels.app?.peak} />
-          <Meter label="Saya" rms={levels.mic?.rms} peak={levels.mic?.peak} />
+          <Meter label={app?.name ?? live?.app_name ?? t("Mereka")} rms={levels.app?.rms} peak={levels.app?.peak} />
+          <Meter label={t("Saya")} rms={levels.mic?.rms} peak={levels.mic?.peak} />
         </div>
         {notice && (
           <p className="notice" role="status">
-            {notice}
+            {t(notice)}
             <button className="link" onClick={() => setNotice(null)}>
-              Tutup
+              {t("Tutup")}
             </button>
           </p>
         )}
       </section>
 
       <div className="columns">
-        <section className="card transcript" aria-label="Transkrip">
+        <section className="card transcript" aria-label={t("Transkrip")}>
           <div className="card-head">
-            <h2>Transkrip</h2>
+            <h2>{t("Transkrip")}</h2>
           </div>
           <div className="lines">
-            {lines.length === 0 && <p className="empty">Transkrip muncul di sini begitu ada yang bicara.</p>}
+            {lines.length === 0 && <p className="empty">{t("Transkrip muncul di sini begitu ada yang bicara.")}</p>}
             {lines.map((l, i) => (
               <div key={i} className={`line ${l.source === "mic" ? "me" : "them"}`}>
-                <span className="who">{l.source === "mic" ? "Saya" : "Mereka"}</span>
+                <span className="who">{l.source === "mic" ? t("Saya") : t("Mereka")}</span>
                 <span className="ts">{fmtTime(l.start)}</span>
                 <p>{l.text}</p>
               </div>
@@ -403,13 +405,13 @@ export default function Meeting({
           </div>
         </section>
 
-        <section className="card ai" aria-label="Asisten AI">
+        <section className="card ai" aria-label={t("Asisten AI")}>
           <div className="card-head">
-            <h2>Asisten</h2>
+            <h2>{t("Asisten")}</h2>
           </div>
           {question && (
             <p className="question">
-              <span>Pertanyaan terdeteksi</span>
+              <span>{t("Pertanyaan terdeteksi")}</span>
               {question}
             </p>
           )}
@@ -417,7 +419,9 @@ export default function Meeting({
           <div className="answers">
             {answers.length === 0 && (
               <p className="empty">
-                Tekan <b>Bantu jawab</b> atau <kbd>{assistKey}</kbd> kapan saja.
+                {t("Tekan {action} atau {key} kapan saja.", { action: "\u0000", key: "\u0001" })
+                  .split(/(\u0000|\u0001)/)
+                  .map((part, i) => (part === "\u0000" ? <b key={i}>{t("Bantu jawab")}</b> : part === "\u0001" ? <kbd key={i}>{assistKey}</kbd> : part))}
               </p>
             )}
             {answers.map((a) => (

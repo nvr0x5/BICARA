@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LangContext, translate } from "./i18n";
 import { api, Settings } from "./api";
 import Meeting from "./Meeting";
 import History from "./History";
@@ -24,14 +25,16 @@ export default function App() {
     api.hotkeys().then(setHotkeys);
   }, []);
 
+  const lang = settings?.ui_language ?? "id";
   return (
-    <main className="app">
+    <LangContext.Provider value={lang}>
+    <main className="app" lang={lang}>
       <header className="top">
         <h1>BICARA</h1>
         <nav className="tabs" role="tablist">
           {TABS.map(([id, label]) => (
             <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
-              {label}
+              {translate(lang, label)}
             </button>
           ))}
         </nav>
@@ -52,5 +55,6 @@ export default function App() {
       {tab === "settings" && settings && <SettingsView settings={settings} onSaved={setSettings} />}
       {tab === "stealth" && <StealthView hotkeys={hotkeys} />}
     </main>
+    </LangContext.Provider>
   );
 }

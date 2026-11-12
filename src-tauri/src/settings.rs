@@ -43,6 +43,8 @@ pub struct Settings {
     pub language: String,
     /// Microphone device name (`None` = system default).
     pub mic_device: Option<String>,
+    /// App interface language: "id" or "en".
+    pub ui_language: String,
 }
 
 impl Default for Settings {
@@ -62,6 +64,7 @@ impl Default for Settings {
             keep_audio: true,
             language: "id".into(),
             mic_device: None,
+            ui_language: "id".into(),
         }
     }
 }
@@ -179,6 +182,8 @@ pub fn save_settings(
 ) -> Result<Settings, String> {
     save(&app, &settings)?;
     *state.settings.lock().unwrap() = settings.clone();
+    // Other windows (the overlay) follow language changes.
+    let _ = tauri::Emitter::emit(&app, "settings-changed", &settings);
     crate::assist::prewarm(&app);
     Ok(settings)
 }

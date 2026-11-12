@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useT } from "./i18n";
 import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -7,6 +8,7 @@ import { Markdown } from "./Markdown";
 import { AnswerCard } from "./AiPanel";
 
 export default function History({ openId }: { openId: number | null }) {
+  const t = useT();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
@@ -54,7 +56,7 @@ export default function History({ openId }: { openId: number | null }) {
     if (!path) return;
     try {
       const p = await api.exportMeeting(m.id, path);
-      setNotice(`Tersimpan: ${p}`);
+      setNotice(t("Tersimpan: {path}", { path: p }));
       revealItemInDir(p);
     } catch (e) {
       setNotice(String(e));
@@ -71,7 +73,7 @@ export default function History({ openId }: { openId: number | null }) {
   };
 
   const del = async () => {
-    if (!m || !confirm(`Hapus "${m.title}" beserta transkrip, notulen, dokumen, dan rekamannya? Tidak bisa dibatalkan.`)) return;
+    if (!m || !confirm(t('Hapus "{title}" beserta transkrip, notulen, dokumen, dan rekamannya? Tidak bisa dibatalkan.', { title: m.title }))) return;
     try {
       await api.deleteMeeting(m.id);
       setSel(null);
@@ -86,7 +88,7 @@ export default function History({ openId }: { openId: number | null }) {
   return (
     <div className="history">
       <aside className="card list">
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari di semua meeting…" aria-label="Cari meeting" />
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari di semua meeting…")} aria-label={t("Cari meeting")} />
         <ul>
           {hits
             ? hits.map((h) => (
@@ -103,19 +105,19 @@ export default function History({ openId }: { openId: number | null }) {
                   <button className={sel === x.id ? "on" : ""} onClick={() => setSel(x.id)}>
                     <strong>{x.title}</strong>
                     <span className="hint">
-                      {fmtDate(x.started_at)} · {x.utterances} kalimat{x.ended_at ? "" : " · belum selesai"}
+                      {fmtDate(x.started_at)} · {x.utterances} {t("kalimat")}{x.ended_at ? "" : t(" · belum selesai")}
                     </span>
                   </button>
                 </li>
               ))}
-          {!hits && meetings.length === 0 && <li className="empty">Belum ada meeting.</li>}
-          {hits && hits.length === 0 && <li className="empty">Tidak ditemukan.</li>}
+          {!hits && meetings.length === 0 && <li className="empty">{t("Belum ada meeting.")}</li>}
+          {hits && hits.length === 0 && <li className="empty">{t("Tidak ditemukan.")}</li>}
         </ul>
       </aside>
 
       <section className="card detail">
         {!m ? (
-          <p className="empty">Pilih meeting di kiri.</p>
+          <p className="empty">{t("Pilih meeting di kiri.")}</p>
         ) : (
           <>
             <div className="card-head">
@@ -124,28 +126,28 @@ export default function History({ openId }: { openId: number | null }) {
                 <span className="hint">
                   {detail!.date}
                   {m.app_name ? ` · ${m.app_name}` : ""}
-                  {m.ended_at ? ` · ${Math.round((m.ended_at - m.started_at) / 60)} menit` : ""}
+                  {m.ended_at ? ` · ${Math.round((m.ended_at - m.started_at) / 60)} ${t("menit")}` : ""}
                 </span>
               </div>
               <div className="row">
                 <button className="ghost" onClick={() => exportAs("docx")}>Word</button>
                 <button className="ghost" onClick={() => exportAs("md")}>Markdown</button>
                 <button className="ghost" onClick={share} disabled={!m.notulen}>WhatsApp</button>
-                <button className="ghost danger-text" onClick={del}>Hapus</button>
+                <button className="ghost danger-text" onClick={del}>{t("Hapus")}</button>
               </div>
             </div>
             {notice && (
               <p className="hint" role="status">
-                {notice}
+                {t(notice)}
               </p>
             )}
-            {detail!.documents.length > 0 && <p className="hint">Dokumen: {detail!.documents.map((d) => d.name).join(", ")}</p>}
+            {detail!.documents.length > 0 && <p className="hint">{t("Dokumen:")} {detail!.documents.map((d) => d.name).join(", ")}</p>}
             <nav className="tabs small" role="tablist">
               {(
                 [
-                  ["notulen", "Notulen"],
-                  ["transkrip", `Transkrip (${detail!.utterances.length})`],
-                  ["ai", `Jawaban AI (${detail!.answers.length})`],
+                  ["notulen", t("Notulen")],
+                  ["transkrip", `${t("Transkrip")} (${detail!.utterances.length})`],
+                  ["ai", `${t("Jawaban AI")} (${detail!.answers.length})`],
                 ] as const
               ).map(([id, label]) => (
                 <button key={id} role="tab" aria-selected={view === id} className={view === id ? "on" : ""} onClick={() => setView(id)}>
@@ -168,18 +170,18 @@ export default function History({ openId }: { openId: number | null }) {
                           setDetail(await api.getMeeting(m.id));
                         }}
                       >
-                        Simpan
+                        {t("Simpan")}
                       </button>
-                      <button className="ghost" onClick={() => setEditing(null)}>Batal</button>
+                      <button className="ghost" onClick={() => setEditing(null)}>{t("Batal")}</button>
                     </div>
                   </div>
                 ) : (
                   <div className="grid-gap">
-                    {m.notulen ? <Markdown text={m.notulen} /> : <p className="empty">Belum ada notulen.</p>}
+                    {m.notulen ? <Markdown text={m.notulen} /> : <p className="empty">{t("Belum ada notulen.")}</p>}
                     <div className="row">
-                      <button className="ghost" onClick={() => setEditing(m.notulen ?? "")}>Edit</button>
+                      <button className="ghost" onClick={() => setEditing(m.notulen ?? "")}>{t("Edit")}</button>
                       <button className="ghost" onClick={() => api.generateNotulen(m.id)} disabled={detail!.utterances.length === 0}>
-                        Buat ulang notulen
+                        {t("Buat ulang notulen")}
                       </button>
                     </div>
                     {answers.find((a) => a.action === "notulen" && !a.done) && <AnswerCard a={answers.find((a) => a.action === "notulen" && !a.done)!} />}
@@ -189,14 +191,14 @@ export default function History({ openId }: { openId: number | null }) {
                 <div className="lines">
                   {detail!.utterances.map((l, i) => (
                     <div key={i} className={`line ${l.source === "mic" ? "me" : "them"}`}>
-                      <span className="who">{l.source === "mic" ? "Saya" : "Mereka"}</span>
+                      <span className="who">{l.source === "mic" ? t("Saya") : t("Mereka")}</span>
                       <span className="ts">{fmtTime(l.start)}</span>
                       <p>{l.text}</p>
                     </div>
                   ))}
                   {m.recording_dir && (
                     <button className="link" onClick={() => revealItemInDir(m.recording_dir!)}>
-                      Buka folder rekaman
+                      {t("Buka folder rekaman")}
                     </button>
                   )}
                 </div>
@@ -226,9 +228,9 @@ export default function History({ openId }: { openId: number | null }) {
                 setAsk("");
               }}
             >
-              <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder="Tanya tentang meeting ini, mis. “Apa tenggat yang disepakati?”" aria-label="Tanya tentang meeting ini" />
+              <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={t("Tanya tentang meeting ini, mis. “Apa tenggat yang disepakati?”")} aria-label={t("Tanya tentang meeting ini")} />
               <button className="ghost" type="submit" disabled={!ask.trim()}>
-                Tanya
+                {t("Tanya")}
               </button>
             </form>
             {meetingAnswers.slice(0, 3).map((a) => (

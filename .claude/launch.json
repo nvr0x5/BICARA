@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "bicara-ui", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev"], "port": 1420 }
+  ]
+}

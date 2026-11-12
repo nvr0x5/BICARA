@@ -35,6 +35,7 @@ export type Settings = {
   keep_audio: boolean;
   language: "id" | "en" | "auto";
   mic_device: string | null;
+  ui_language: "id" | "en";
 };
 
 export type Meeting = {
@@ -101,7 +102,8 @@ export const api = {
 };
 
 export function fmtDate(ts: number) {
-  return new Date(ts * 1000).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+  const lang = document.querySelector("main")?.getAttribute("lang") === "en" ? "en-GB" : "id-ID";
+  return new Date(ts * 1000).toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function keyAccount(p: ProviderConfig): string | null {
