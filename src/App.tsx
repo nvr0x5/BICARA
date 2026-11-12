@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { api, Settings } from "./api";
-import Live from "./Live";
+import Meeting from "./Meeting";
+import History from "./History";
 import SettingsView from "./SettingsView";
 import StealthView from "./StealthView";
 
-type Tab = "live" | "settings" | "stealth";
+type Tab = "live" | "history" | "settings" | "stealth";
 const TABS: [Tab, string][] = [
-  ["live", "Live"],
+  ["live", "Meeting"],
+  ["history", "Riwayat"],
   ["settings", "Pengaturan"],
   ["stealth", "Siluman"],
 ];
@@ -15,6 +17,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("live");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [hotkeys, setHotkeys] = useState({ panic: "", assist: "" });
+  const [openId, setOpenId] = useState<number | null>(null);
 
   useEffect(() => {
     api.getSettings().then(setSettings);
@@ -35,8 +38,17 @@ export default function App() {
       </header>
       {/* Live stays mounted so recording state and streams survive tab switches. */}
       <div hidden={tab !== "live"}>
-        <Live settings={settings} onSettings={setSettings} assistKey={hotkeys.assist} />
+        <Meeting
+          settings={settings}
+          onSettings={setSettings}
+          assistKey={hotkeys.assist}
+          onOpenHistory={(id) => {
+            setOpenId(id);
+            setTab("history");
+          }}
+        />
       </div>
+      {tab === "history" && <History openId={openId} />}
       {tab === "settings" && settings && <SettingsView settings={settings} onSaved={setSettings} />}
       {tab === "stealth" && <StealthView hotkeys={hotkeys} />}
     </main>

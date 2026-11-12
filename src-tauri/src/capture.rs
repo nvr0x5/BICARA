@@ -28,9 +28,9 @@ struct Level {
 
 #[derive(Serialize)]
 pub struct SessionInfo {
-    dir: String,
-    transcribing: bool,
-    warning: Option<String>,
+    pub dir: String,
+    pub transcribing: bool,
+    pub warning: Option<String>,
 }
 
 type Chunk = (Vec<f32>, u32);

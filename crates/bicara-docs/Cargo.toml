@@ -1,0 +1,14 @@
+[package]
+name = "bicara-docs"
+version = "0.1.0"
+edition = "2021"
+description = "Text extraction (PDF, DOCX, PPTX, TXT, MD) and chunking for BICARA meeting context"
+
+[dependencies]
+thiserror = "2"
+pdf-extract = "0.9"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+quick-xml = "0.37"
+
+[dev-dependencies]
+docx-rs = "0.4"

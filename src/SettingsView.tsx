@@ -281,6 +281,19 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
         </div>
       </section>
 
+      <section className="card">
+        <h2>Privasi</h2>
+        <label className="check">
+          <input type="checkbox" checked={draft.consent_reminder} onChange={(e) => setDraft({ ...draft, consent_reminder: e.target.checked })} />
+          Ingatkan saya memberi tahu peserta sebelum merekam (UU PDP)
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={draft.keep_audio} onChange={(e) => setDraft({ ...draft, keep_audio: e.target.checked })} />
+          Simpan rekaman audio setiap meeting (transkrip & notulen selalu disimpan)
+        </label>
+        <p className="hint">Semua data tersimpan lokal di komputer ini. Teks transkrip dikirim ke penyedia AI yang kamu pilih saat AI dipakai.</p>
+      </section>
+
       <div className="savebar">
         {saved && <span role="status">{saved}</span>}
         <button className="primary" onClick={save}>

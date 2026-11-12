@@ -20,6 +20,23 @@ pub enum Action {
     Ask,
     Summary,
     Followup,
+    /// Post-meeting minutes.
+    Notulen,
+    /// Interview preparation (STAR answers to common HRD questions).
+    Prep,
+}
+
+impl Action {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Action::Assist => "assist",
+            Action::Ask => "ask",
+            Action::Summary => "summary",
+            Action::Followup => "followup",
+            Action::Notulen => "notulen",
+            Action::Prep => "prep",
+        }
+    }
 }
 
 #[derive(Clone, Serialize)]
@@ -129,7 +146,7 @@ fn fmt_time(t: f64) -> String {
     format!("{:02}:{:02}", s / 60, s % 60)
 }
 
-fn transcript_text(lines: &[Utterance], max_chars: usize) -> String {
+pub fn transcript_text(lines: &[Utterance], max_chars: usize) -> String {
     let mut out: Vec<String> = Vec::new();
     let mut n = 0;
     for u in lines.iter().rev() {
@@ -154,6 +171,13 @@ fn transcript_text(lines: &[Utterance], max_chars: usize) -> String {
 pub fn on_utterance(app: &AppHandle, u: Utterance) {
     let state = app.state::<AppState>();
     state.transcript.lock().unwrap().push(u.clone());
+    if let Some(mid) = *state.current_meeting.lock().unwrap() {
+        let _ = state
+            .store
+            .lock()
+            .unwrap()
+            .add_utterance(mid, &u.source, &u.text, u.start, u.end);
+    }
     let _ = app.emit("transcript", &u);
 
     if u.source == "app" && looks_like_question(&u.text) {
@@ -245,6 +269,7 @@ fn user_prompt(action: Action, transcript: &str, input: Option<&str>) -> (String
                  tenggat, tulis \"?\" jika tidak disebut), **Pertanyaan terbuka**. Lewati bagian yang kosong."
             ),
         ),
+        Action::Notulen | Action::Prep => unreachable!("built by meeting module"),
         Action::Followup => (
             "Pertanyaan lanjutan".into(),
             format!(
@@ -273,47 +298,23 @@ fn provider_label(cfg: &bicara_llm::ProviderConfig) -> String {
 
 // ---------------------------------------------------------------- run
 
-/// Start an AI action; results stream to the UI as `ai-start` / `ai-delta` / `ai-done` events.
-pub fn run(app: AppHandle, action: Action, input: Option<String>) -> u64 {
+/// Called with the final text when an AI request succeeds.
+pub type OnDone = Box<dyn FnOnce(&AppHandle, &str) + Send>;
+
+/// Stream one LLM request to the UI (`ai-start` / `ai-delta` / `ai-done`) and, when a meeting
+/// is given, save the answer in its history.
+pub fn stream_llm(
+    app: AppHandle,
+    meeting_id: Option<i64>,
+    action: Action,
+    title: String,
+    input: Option<String>,
+    req: ChatRequest,
+    on_done: Option<OnDone>,
+) -> u64 {
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     let state = app.state::<AppState>();
-    let settings = state.settings.lock().unwrap().clone();
-    let input = match (action, input) {
-        (Action::Assist, None) => state.last_question.lock().unwrap().clone(),
-        (_, i) => i,
-    };
-    let transcript = transcript_text(&state.transcript.lock().unwrap(), 12_000);
-    let (title, user) = user_prompt(action, &transcript, input.as_deref());
-    let nothing_to_use = transcript.is_empty() && input.is_none();
-    if nothing_to_use && action != Action::Ask {
-        let _ = app.emit(
-            "ai-start",
-            AiStart {
-                id,
-                action,
-                title,
-                provider: String::new(),
-            },
-        );
-        let _ = app.emit(
-            "ai-done",
-            AiDone {
-                id,
-                text: String::new(),
-                error: Some(
-                    "Belum ada percakapan. Tekan Mulai dan tunggu lawan bicara berbicara.".into(),
-                ),
-                ms: 0,
-            },
-        );
-        return id;
-    }
-    let req = ChatRequest {
-        system: system_prompt(&settings),
-        user,
-        max_tokens: if action == Action::Summary { 1500 } else { 700 },
-    };
-    let cfg = settings.provider.clone();
+    let cfg = state.settings.lock().unwrap().provider.clone();
     let key = cfg.key_account().and_then(|a| crate::settings::api_key(&a));
     let llm = state.llm.clone();
     let _ = app.emit(
@@ -321,11 +322,10 @@ pub fn run(app: AppHandle, action: Action, input: Option<String>) -> u64 {
         AiStart {
             id,
             action,
-            title,
+            title: title.clone(),
             provider: provider_label(&cfg),
         },
     );
-
     tauri::async_runtime::spawn(async move {
         let t0 = Instant::now();
         let app2 = app.clone();
@@ -343,12 +343,27 @@ pub fn run(app: AppHandle, action: Action, input: Option<String>) -> u64 {
             .await;
         let ms = t0.elapsed().as_millis() as u64;
         let done = match res {
-            Ok(text) => AiDone {
-                id,
-                text,
-                error: None,
-                ms,
-            },
+            Ok(text) => {
+                if let Some(mid) = meeting_id {
+                    let st = app.state::<AppState>();
+                    let _ = st.store.lock().unwrap().add_answer(
+                        mid,
+                        action.as_str(),
+                        &title,
+                        input.as_deref(),
+                        &text,
+                    );
+                }
+                if let Some(f) = on_done {
+                    f(&app, &text);
+                }
+                AiDone {
+                    id,
+                    text,
+                    error: None,
+                    ms,
+                }
+            }
             Err(e) => AiDone {
                 id,
                 text: String::new(),
@@ -359,6 +374,95 @@ pub fn run(app: AppHandle, action: Action, input: Option<String>) -> u64 {
         let _ = app.emit("ai-done", done);
     });
     id
+}
+
+fn emit_error(app: &AppHandle, action: Action, title: String, msg: &str) -> u64 {
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let _ = app.emit(
+        "ai-start",
+        AiStart {
+            id,
+            action,
+            title,
+            provider: String::new(),
+        },
+    );
+    let _ = app.emit(
+        "ai-done",
+        AiDone {
+            id,
+            text: String::new(),
+            error: Some(msg.into()),
+            ms: 0,
+        },
+    );
+    id
+}
+
+/// Meeting documents relevant to `query`, wrapped for the prompt (empty if none).
+pub fn documents_block(
+    app: &AppHandle,
+    meeting_id: Option<i64>,
+    query: &str,
+    budget: usize,
+) -> String {
+    let Some(mid) = meeting_id else {
+        return String::new();
+    };
+    let st = app.state::<AppState>();
+    let ctx = st
+        .store
+        .lock()
+        .unwrap()
+        .document_context(mid, query, budget)
+        .unwrap_or_default();
+    if ctx.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "Dokumen konteks meeting ini (gunakan bila relevan, sebutkan nama dokumennya):\n{ctx}\n\n"
+        )
+    }
+}
+
+/// Live actions during a meeting (or a quick session without one).
+pub fn run(app: AppHandle, action: Action, input: Option<String>) -> u64 {
+    let state = app.state::<AppState>();
+    let settings = state.settings.lock().unwrap().clone();
+    let meeting_id = *state.current_meeting.lock().unwrap();
+    let input = match (action, input) {
+        (Action::Assist, None) => state.last_question.lock().unwrap().clone(),
+        (_, i) => i,
+    };
+    let transcript = transcript_text(&state.transcript.lock().unwrap(), 12_000);
+    if transcript.is_empty() && input.is_none() && action != Action::Ask {
+        let title = user_prompt(action, "", None).0;
+        return emit_error(
+            &app,
+            action,
+            title,
+            "Belum ada percakapan. Mulai meeting dan tunggu lawan bicara berbicara.",
+        );
+    }
+    let (title, user) = user_prompt(action, &transcript, input.as_deref());
+    // Retrieval query: the question plus the latest part of the conversation.
+    let tail: String = transcript
+        .chars()
+        .rev()
+        .take(600)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    let query = format!("{} {}", input.as_deref().unwrap_or(""), tail);
+    let docs = documents_block(&app, meeting_id, &query, 24_000);
+    let req = ChatRequest {
+        // System prompt stays identical across requests so the warm CLI process can be reused.
+        system: system_prompt(&settings),
+        user: format!("{docs}{user}"),
+        max_tokens: if action == Action::Summary { 1500 } else { 700 },
+    };
+    stream_llm(app.clone(), meeting_id, action, title, input, req, None)
 }
 
 /// Keep a subscription CLI process warm for the current preset (saves seconds per answer).

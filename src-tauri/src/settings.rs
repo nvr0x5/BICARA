@@ -35,6 +35,10 @@ pub struct Settings {
     pub auto_assist: bool,
     pub active_preset: String,
     pub presets: Vec<Preset>,
+    /// Ask the user to confirm participants were told about recording (UU PDP).
+    pub consent_reminder: bool,
+    /// Keep the WAV recordings of each meeting.
+    pub keep_audio: bool,
 }
 
 impl Default for Settings {
@@ -50,6 +54,8 @@ impl Default for Settings {
             auto_assist: true,
             active_preset: "rapat".into(),
             presets: builtin_presets(),
+            consent_reminder: true,
+            keep_audio: true,
         }
     }
 }

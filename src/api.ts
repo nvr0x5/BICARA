@@ -31,10 +31,29 @@ export type Settings = {
   auto_assist: boolean;
   active_preset: string;
   presets: Preset[];
+  consent_reminder: boolean;
+  keep_audio: boolean;
 };
 
+export type Meeting = {
+  id: number;
+  title: string;
+  preset_id: string;
+  app_name: string | null;
+  started_at: number;
+  ended_at: number | null;
+  notulen: string | null;
+  recording_dir: string | null;
+  utterances: number;
+  documents: number;
+};
+export type Doc = { id: number; meeting_id: number; name: string; chars: number };
+export type StoredAnswer = { id: number; action: string; title: string; input: string | null; text: string; created_at: number };
+export type MeetingDetail = { meeting: Meeting; date: string; utterances: Utterance[]; answers: StoredAnswer[]; documents: Doc[] };
+export type SearchHit = { meeting_id: number; title: string; started_at: number; snippet: string };
+
 export type ModelInfo = { file: string; label: string; size_mb: number; installed: boolean };
-export type Action = "assist" | "ask" | "summary" | "followup";
+export type Action = "assist" | "ask" | "summary" | "followup" | "notulen" | "prep";
 
 export const api = {
   listAudioApps: () => invoke<AudioApp[]>("list_audio_apps"),
@@ -56,7 +75,31 @@ export const api = {
   aiAction: (action: Action, input?: string) => invoke<number>("ai_action", { action, input: input ?? null }),
   getTranscript: () => invoke<Utterance[]>("get_transcript"),
   clearTranscript: () => invoke<void>("clear_transcript"),
+  createMeeting: (title: string, presetId: string) => invoke<Meeting>("create_meeting", { title, presetId }),
+  addMeetingFiles: (meetingId: number, paths: string[]) =>
+    invoke<{ name: string; document: Doc | null; error: string | null }[]>("add_meeting_files", { meetingId, paths }),
+  removeMeetingDocument: (documentId: number) => invoke<void>("remove_meeting_document", { documentId }),
+  docExtensions: () => invoke<string[]>("supported_document_extensions"),
+  startMeeting: (meetingId: number, appId: string | null, appName: string | null, mic: boolean) =>
+    invoke<{ meeting: Meeting; transcribing: boolean; warning: string | null }>("start_meeting", { meetingId, appId, appName, mic }),
+  endMeeting: () => invoke<number | null>("end_meeting"),
+  currentMeeting: () => invoke<Meeting | null>("current_meeting"),
+  generateNotulen: (meetingId: number) => invoke<number>("generate_notulen", { meetingId }),
+  saveNotulen: (meetingId: number, text: string) => invoke<void>("save_notulen", { meetingId, text }),
+  prepareInterview: (meetingId: number) => invoke<number>("prepare_interview", { meetingId }),
+  listMeetings: () => invoke<Meeting[]>("list_meetings"),
+  searchMeetings: (query: string) => invoke<SearchHit[]>("search_meetings", { query }),
+  getMeeting: (meetingId: number) => invoke<MeetingDetail>("get_meeting", { meetingId }),
+  renameMeeting: (meetingId: number, title: string) => invoke<void>("rename_meeting", { meetingId, title }),
+  deleteMeeting: (meetingId: number) => invoke<void>("delete_meeting", { meetingId }),
+  askMeeting: (meetingId: number, question: string) => invoke<number>("ask_meeting", { meetingId, question }),
+  exportMeeting: (meetingId: number, path: string) => invoke<string>("export_meeting", { meetingId, path }),
+  whatsappUrl: (meetingId: number) => invoke<string>("whatsapp_share_url", { meetingId }),
 };
+
+export function fmtDate(ts: number) {
+  return new Date(ts * 1000).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+}
 
 export function keyAccount(p: ProviderConfig): string | null {
   if (p.kind === "anthropic") return "anthropic";
