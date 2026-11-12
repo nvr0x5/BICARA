@@ -103,3 +103,27 @@ Known gaps / next:
 - Capture targets the processes present at start; a helper that starts audio later (e.g. Chrome spawning a new audio process) is not added yet → re-tap on process-list change.
 - Browser = whole browser (tab-level later via extension).
 - Debug build is unsigned; System Audio Recording permission is attributed per build.
+
+## Phase 1 status (2026-11-12)
+
+| Item | Status | Evidence |
+|---|---|---|
+| Live STT (whisper.cpp large-v3-turbo q5, Metal) | ✅ verified | Indonesian TTS speech transcribed word-for-word; ~4× faster than real time; model loads in background at startup |
+| Resampler + energy VAD (pause-based cuts, smart cut at quietest point for long speech) | ✅ unit-tested | `crates/bicara-stt` tests |
+| Question detection (Indonesian + English) | ✅ unit-tested | `assist::tests` |
+| Auto "Bantu jawab" on detected question | ✅ verified in app | interview audio → question detected → formal Indonesian answer streamed |
+| Claude subscription via `claude` CLI | ✅ verified | warm process: first token ~2 s (Haiku), ~2.5 s (Sonnet); full answer 8.1 s (Sonnet) |
+| Codex subscription via `codex exec --json` | ⚠️ untested | Codex CLI not installed on the dev Mac |
+| Anthropic API / OpenAI-compatible (OpenAI, Groq, OpenRouter, Ollama, LM Studio) | ⚠️ untested | no keys / Ollama not running; keys stored in OS keychain |
+| Actions: Bantu jawab, Tanya, Ringkas (notulen), Pertanyaan lanjutan | ✅ built | Bantu jawab verified; others share the same path |
+| Presets + custom system prompt + pasted context (CV, agenda…) | ✅ built | 4 built-in presets (Rapat, Interview, Webinar, Sales) |
+| Formal / santai register toggle | ✅ built | |
+| Global hotkey ⌘⇧J / Ctrl+Shift+J = Bantu jawab | ✅ verified | works while another app is in front |
+| Overlay with latest answer + actions | ✅ verified | |
+| Model downloader with progress | ✅ built | not exercised (model fetched manually during dev) |
+
+Known gaps / next:
+- Whisper misheard "product manager" as "Project Manager" → vocabulary field helps; benchmark with real recordings.
+- Without headphones the mic also hears the other side → duplicate lines. Echo suppression / "mic only when louder than app" heuristic next.
+- No partial (in-progress) transcript yet; text appears ~1–2 s after each pause.
+- Windows: needs a real build on Windows (cross-check from macOS stops at `ring`'s C code, not ours).

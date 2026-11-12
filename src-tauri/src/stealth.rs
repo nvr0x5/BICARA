@@ -10,28 +10,46 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 
 use crate::AppState;
 
-fn panic_shortcut() -> Shortcut {
-    #[cfg(target_os = "macos")]
-    let mods = Modifiers::SUPER | Modifiers::SHIFT;
-    #[cfg(not(target_os = "macos"))]
-    let mods = Modifiers::CONTROL | Modifiers::SHIFT;
-    Shortcut::new(Some(mods), Code::KeyH)
+fn mods() -> Modifiers {
+    if cfg!(target_os = "macos") {
+        Modifiers::SUPER | Modifiers::SHIFT
+    } else {
+        Modifiers::CONTROL | Modifiers::SHIFT
+    }
 }
 
-pub fn panic_hotkey_plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
+/// ⌘⇧H / Ctrl+Shift+H — hide or show every BICARA window.
+fn panic_shortcut() -> Shortcut {
+    Shortcut::new(Some(mods()), Code::KeyH)
+}
+
+/// ⌘⇧J / Ctrl+Shift+J — "Bantu jawab": suggest an answer to the last question.
+fn assist_shortcut() -> Shortcut {
+    Shortcut::new(Some(mods()), Code::KeyJ)
+}
+
+pub fn hotkey_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     tauri_plugin_global_shortcut::Builder::new()
         .with_handler(|app, shortcut, event| {
-            if event.state() == ShortcutState::Pressed && *shortcut == panic_shortcut() {
+            if event.state() != ShortcutState::Pressed {
+                return;
+            }
+            if *shortcut == panic_shortcut() {
                 toggle_all(app);
+            } else if *shortcut == assist_shortcut() {
+                crate::assist::run(app.clone(), crate::assist::Action::Assist, None);
             }
         })
         .build()
 }
 
-pub fn register_panic_hotkey<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    app.global_shortcut()
-        .register(panic_shortcut())
-        .map_err(|e| tauri::Error::Anyhow(e.into()))
+pub fn register_hotkeys<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    for s in [panic_shortcut(), assist_shortcut()] {
+        app.global_shortcut()
+            .register(s)
+            .map_err(|e| tauri::Error::Anyhow(e.into()))?;
+    }
+    Ok(())
 }
 
 fn toggle_all<R: Runtime>(app: &AppHandle<R>) {
@@ -47,12 +65,24 @@ pub fn toggle_visibility(app: AppHandle) {
     toggle_all(&app);
 }
 
+#[derive(serde::Serialize)]
+pub struct HotkeyLabels {
+    panic: &'static str,
+    assist: &'static str,
+}
+
 #[tauri::command]
-pub fn panic_hotkey_label() -> &'static str {
+pub fn hotkey_labels() -> HotkeyLabels {
     if cfg!(target_os = "macos") {
-        "⌘ + ⇧ + H"
+        HotkeyLabels {
+            panic: "⌘⇧H",
+            assist: "⌘⇧J",
+        }
     } else {
-        "Ctrl + Shift + H"
+        HotkeyLabels {
+            panic: "Ctrl+Shift+H",
+            assist: "Ctrl+Shift+J",
+        }
     }
 }
 

@@ -29,6 +29,8 @@ struct Level {
 #[derive(Serialize)]
 pub struct SessionInfo {
     dir: String,
+    transcribing: bool,
+    warning: Option<String>,
 }
 
 type Chunk = (Vec<f32>, u32);
@@ -39,6 +41,7 @@ fn stream_pipeline(
     app: AppHandle,
     source: &'static str,
     path: PathBuf,
+    feeder: Option<bicara_stt::StreamFeeder>,
 ) -> (Sink, JoinHandle<Option<PathBuf>>) {
     let (tx, rx) = sync_channel::<Chunk>(256);
     let sink: Sink = Box::new(move |samples, rate| {
@@ -46,7 +49,7 @@ fn stream_pipeline(
     });
     let handle = std::thread::Builder::new()
         .name(format!("bicara-writer-{source}"))
-        .spawn(move || writer_loop(app, source, path, rx))
+        .spawn(move || writer_loop(app, source, path, rx, feeder))
         .expect("spawn writer");
     (sink, handle)
 }
@@ -56,6 +59,7 @@ fn writer_loop(
     source: &'static str,
     path: PathBuf,
     rx: Receiver<Chunk>,
+    mut feeder: Option<bicara_stt::StreamFeeder>,
 ) -> Option<PathBuf> {
     let mut writer: Option<hound::WavWriter<std::io::BufWriter<std::fs::File>>> = None;
     let (mut sq, mut n, mut peak) = (0f64, 0usize, 0f32);
@@ -83,6 +87,9 @@ fn writer_loop(
             peak = peak.max(s.abs());
         }
         n += buf.len();
+        if let Some(f) = feeder.as_mut() {
+            f.push(&buf, rate);
+        }
         if last.elapsed() >= Duration::from_millis(66) && n > 0 {
             let _ = app.emit(
                 "audio-level",
@@ -95,6 +102,9 @@ fn writer_loop(
             (sq, n, peak) = (0.0, 0, 0.0);
             last = Instant::now();
         }
+    }
+    if let Some(f) = feeder.as_mut() {
+        f.finish();
     }
     let _ = app.emit(
         "audio-level",
@@ -122,7 +132,8 @@ pub fn recordings_dir(app: AppHandle) -> Result<String, String> {
     Ok(dir.to_string_lossy().into_owned())
 }
 
-#[tauri::command]
+// `async` so loading the speech model (a few seconds) never blocks the UI thread.
+#[tauri::command(async)]
 pub fn start_capture(
     app: AppHandle,
     state: State<'_, AppState>,
@@ -148,6 +159,13 @@ pub fn start_capture(
         .join(format!("session-{ts}"));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
+    // Live transcription is optional: without a model we still record.
+    let (stt, warning) = match crate::models::transcriber(&app) {
+        Ok(t) => (Some(t), None),
+        Err(e) => (None, Some(e)),
+    };
+    let transcribing = stt.is_some();
+
     let mut session = Session {
         app: None,
         mic: None,
@@ -156,12 +174,22 @@ pub fn start_capture(
     };
 
     if let Some(id) = app_id {
-        let (sink, w) = stream_pipeline(app.clone(), "app", dir.join("mereka-app.wav"));
+        let (sink, w) = stream_pipeline(
+            app.clone(),
+            "app",
+            dir.join("mereka-app.wav"),
+            stt.as_ref().map(|t| t.feeder("app")),
+        );
         session.writers.push(w);
         session.app = Some(AppCapture::start(&id, sink).map_err(|e| e.to_string())?);
     }
     if mic {
-        let (sink, w) = stream_pipeline(app.clone(), "mic", dir.join("saya-mic.wav"));
+        let (sink, w) = stream_pipeline(
+            app.clone(),
+            "mic",
+            dir.join("saya-mic.wav"),
+            stt.as_ref().map(|t| t.feeder("mic")),
+        );
         session.writers.push(w);
         match MicCapture::start(sink) {
             Ok(m) => session.mic = Some(m),
@@ -174,6 +202,8 @@ pub fn start_capture(
     *guard = Some(session);
     Ok(SessionInfo {
         dir: dir.to_string_lossy().into_owned(),
+        transcribing,
+        warning,
     })
 }
 
@@ -188,7 +218,7 @@ fn stop_session(mut s: Session) -> Vec<String> {
         .collect()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn stop_capture(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     let session = state.session.lock().unwrap().take();
     Ok(session.map(stop_session).unwrap_or_default())

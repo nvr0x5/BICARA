@@ -1,17 +1,35 @@
-import { useLevels } from "./api";
-import { Meter } from "./Meter";
+import { useEffect, useState } from "react";
+import { api, useAnswers, useLastQuestion } from "./api";
+import { ActionBar, AnswerCard } from "./AiPanel";
 
+/** Compact always-on-top panel: last question + latest AI answer. */
 export default function Overlay() {
-  const levels = useLevels();
+  const answers = useAnswers();
+  const question = useLastQuestion();
+  const [keys, setKeys] = useState({ panic: "", assist: "" });
+  useEffect(() => {
+    api.hotkeys().then(setKeys);
+  }, []);
+  const latest = answers[0];
+
   return (
     <main className="overlay">
-      <div className="overlay-title">BICARA · Overlay</div>
-      <p className="overlay-warn">
-        Kalau jendela ini terlihat di layar yang kamu share / rekam, berarti <b>stealth gagal</b> untuk
-        aplikasi itu.
-      </p>
-      <Meter label="Mereka" rms={levels.app?.rms} peak={levels.app?.peak} />
-      <Meter label="Saya" rms={levels.mic?.rms} peak={levels.mic?.peak} />
+      {question && (
+        <p className="question">
+          <span>Pertanyaan</span>
+          {question}
+        </p>
+      )}
+      <div className="overlay-body">
+        {latest ? (
+          <AnswerCard a={latest} />
+        ) : (
+          <p className="empty">
+            <kbd>{keys.assist}</kbd> bantu jawab · <kbd>{keys.panic}</kbd> sembunyikan
+          </p>
+        )}
+      </div>
+      <ActionBar compact />
     </main>
   );
 }
