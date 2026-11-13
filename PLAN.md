@@ -82,7 +82,7 @@ Caveat to verify in Phase 0: on recent macOS versions, ScreenCaptureKit-based ca
 - **Phase 0 — spike:** ✅ per-app audio capture, app picker, stealth, STT eval harness.
 - **Phase 1 — MVP:** ✅ live transcript, Claude/Codex/API providers, Assist/Ask/Summary overlay, presets, hotkeys.
 - **Phase 2 — meetings:** explicit **Mulai meeting / Selesai** flow (capture + live AI + recording start together); per-meeting **context files** (multiple PDF/DOCX/TXT/MD) with retrieval; automatic **notulen** after the meeting; export DOCX/MD + **share to WhatsApp**; meeting **history**, search and **ask a past meeting**; HR interview pack; UU PDP consent reminder.
-- **Phase 3:** ✅ partial (in-progress) transcript; ✅ live translation. Still open: browser tab-capture extension; optional TTS; echo suppression; auto-update. ~~Code signing~~ — not needed (personal use).
+- **Phase 3:** ✅ partial (in-progress) transcript; ✅ live translation (saved to history/exports, shown in overlay). ~~Browser tab extension, TTS, echo suppression, auto-update~~ — dropped (not needed for personal use). ~~Code signing~~ — not needed (personal use).
 - **Phase 4 — UI design (last):** first produce **several visual design previews** to choose from, then implement the chosen design.
 - **Later:** Linux (PipeWire per-app capture); English UI/STT.
 
@@ -161,4 +161,36 @@ Known gaps / next:
 | Settings | ✅ | `translate_to` ("" / en / id) in meeting setup and Settings; `live_partials` toggle |
 | In-app check with real meeting audio | ⚠️ not done | frontend type-checks; not yet clicked through in the bundled app |
 
-Known gaps: translations are not saved to history or exports; the overlay shows neither partials nor translations; partials add GPU load (whisper re-runs the open utterance each second).
+| Translations saved | ✅ | `utterances.translation` column (additive migration); shown in History, Markdown/Word export; store test |
+| Overlay live strip | ✅ type-checks | other side's in-progress text, else last line + translation |
+| Logo / app icon | ✅ | `docs/brand/`, icons regenerated with `pnpm tauri icon`; README updated |
+
+Known gaps: partials add GPU load (whisper re-runs the open utterance each second); WhatsApp share omits translations.
+
+## Phase 4 status (2026-11-12) — UI design
+
+| Item | Status | Evidence |
+|---|---|---|
+| Design previews | ✅ | `docs/design-previews/index.html`: three palettes for the Fokus layout; user chose **Graphite + Indigo** |
+| Colour tokens | ✅ | `src/App.css`: neutral greys stepping lighter per layer, one indigo accent; light default, dark via system or `theme` setting |
+| Theme setting | ✅ | Settings → Theme: follow system / dark / light; overlay follows via `settings-changed` |
+| Fokus live screen | ✅ verified in app (dark) | question → latest answer → actions → earlier answers (folded) → transcript (folded, scrolls in place) |
+| Logo in header | ✅ | `src/assets/logo.png` |
+| Meter animation | ✅ | transform instead of width/left (no layout thrash) |
+| Light theme | ✅ checked in browser (setup screen) | live screen in light not yet seen in app |
+
+### Phase 4 update (2026-11-13) — native desktop redesign
+
+The Graphite/Fokus look was replaced after feedback that it "looked AI-made" (indigo accent, floating cards).
+
+| Item | Status | Evidence |
+|---|---|---|
+| Native macOS shell | ✅ verified in app | traffic lights in the toolbar (`titleBarStyle: Overlay`), sidebar with recent meetings, system accent colour, 13 px system font, hairline dividers |
+| Menu bar | ✅ | File / Edit / Meeting / View / Window; ⌘N, ⌘⇧R, ⌘⇧E, ⌃⌘S, ⌥⌘I; ⌘, opens a separate Settings window |
+| Live screen | ✅ verified in app | transcript as document + hideable assistant inspector; meters and mic **Mute** in the status bar; panel cleared on each new meeting |
+| History | ✅ verified in app | Mail-style list/detail, short dates, native delete confirmation (window.confirm does not block in WKWebView) |
+| AI settings | ✅ verified in app | grouped rows, model list fetched from Anthropic / OpenAI-compatible APIs, Claude aliases + pinned 5 / 5.5 ids (no Haiku 5), Test connection shows the resolved model |
+| Windows look | ⚠️ preview + CSS switch | `docs/design-previews/windows.html`; app switches font/accent/shortcuts on Windows; not run on Windows yet |
+| Backend messages in English UI | ✅ | phrase translation in `src/i18n.ts` |
+
+Known gap: when a macOS system dialog (UserNotificationCenter) is open, BICARA's webviews render blank until it is dismissed.

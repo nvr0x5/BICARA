@@ -552,6 +552,7 @@ fn translate(app: AppHandle, u: &Utterance, target: String) {
     let key = cfg.key_account().and_then(|a| crate::settings::api_key(&a));
     let llm = state.llm.clone();
     let (source, start, text) = (u.source.clone(), u.start, u.text.clone());
+    let meeting = *state.current_meeting.lock().unwrap();
     let lang = if target == "en" { "English" } else { "Bahasa Indonesia" };
     let req = ChatRequest {
         system: format!(
@@ -567,6 +568,10 @@ fn translate(app: AppHandle, u: &Utterance, target: String) {
         let mut sink = |_: &str| {};
         match llm.complete(&cfg, key.as_deref(), &req, &mut sink).await {
             Ok(t) if !t.trim().is_empty() => {
+                if let Some(mid) = meeting {
+                    let st = app.state::<AppState>();
+                    let _ = st.store.lock().unwrap().set_translation(mid, &source, start, t.trim());
+                }
                 let _ = app.emit(
                     "translation",
                     Translation {

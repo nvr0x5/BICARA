@@ -38,6 +38,7 @@ pub struct StoredUtterance {
     pub text: String,
     pub start: f64,
     pub end: f64,
+    pub translation: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -196,10 +197,37 @@ pub fn fts_query(text: &str) -> Option<String> {
     (!words.is_empty()).then(|| words.join(" OR "))
 }
 
+/// Additive schema changes for databases created by older versions.
+fn migrate(db: &Connection) -> rusqlite::Result<()> {
+    let has: bool = db
+        .prepare("SELECT 1 FROM pragma_table_info('utterances') WHERE name = 'translation'")?
+        .exists([])?;
+    if !has {
+        db.execute_batch("ALTER TABLE utterances ADD COLUMN translation TEXT")?;
+    }
+    Ok(())
+}
+
 impl Store {
+    pub fn set_translation(
+        &self,
+        meeting_id: i64,
+        source: &str,
+        start: f64,
+        text: &str,
+    ) -> rusqlite::Result<()> {
+        self.db.execute(
+            "UPDATE utterances SET translation = ?4
+             WHERE meeting_id = ?1 AND source = ?2 AND abs(start - ?3) < 0.005",
+            rusqlite::params![meeting_id, source, start, text],
+        )?;
+        Ok(())
+    }
+
     pub fn open(path: &Path) -> rusqlite::Result<Self> {
         let db = Connection::open(path)?;
         db.execute_batch(SCHEMA)?;
+        migrate(&db)?;
         Ok(Self { db })
     }
 
@@ -207,6 +235,7 @@ impl Store {
     pub fn memory() -> Self {
         let db = Connection::open_in_memory().unwrap();
         db.execute_batch(SCHEMA).unwrap();
+        migrate(&db).unwrap();
         Self { db }
     }
 
@@ -319,7 +348,7 @@ impl Store {
 
     pub fn utterances(&self, meeting_id: i64) -> rusqlite::Result<Vec<StoredUtterance>> {
         let mut st = self.db.prepare(
-            "SELECT source, text, start, end FROM utterances WHERE meeting_id = ?1 ORDER BY id",
+            "SELECT source, text, start, end, translation FROM utterances WHERE meeting_id = ?1 ORDER BY id",
         )?;
         let rows = st.query_map([meeting_id], |r| {
             Ok(StoredUtterance {
@@ -327,6 +356,7 @@ impl Store {
                 text: r.get(1)?,
                 start: r.get(2)?,
                 end: r.get(3)?,
+                translation: r.get(4)?,
             })
         })?;
         rows.collect()
@@ -551,6 +581,18 @@ mod tests {
         assert!(s.search("yang dan di").unwrap().is_empty());
         s.delete_meeting(id).unwrap();
         assert!(s.meetings(10).unwrap().is_empty());
+    }
+
+    #[test]
+    fn translation_saved_on_matching_line() {
+        let s = Store::memory();
+        let id = s.create_meeting("t", "rapat").unwrap();
+        s.add_utterance(id, "app", "Halo semua.", 1.23, 2.0).unwrap();
+        s.add_utterance(id, "mic", "Halo.", 1.23, 2.0).unwrap();
+        s.set_translation(id, "app", 1.23, "Hello everyone.").unwrap();
+        let u = s.utterances(id).unwrap();
+        assert_eq!(u[0].translation.as_deref(), Some("Hello everyone."));
+        assert_eq!(u[1].translation, None);
     }
 
     #[test]

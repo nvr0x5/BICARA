@@ -13,7 +13,7 @@ export type AudioApp = {
 
 export type Level = { source: "app" | "mic"; rms: number; peak: number };
 
-export type Utterance = { source: "app" | "mic"; text: string; start: number; end: number; latency_ms: number; partial?: boolean };
+export type Utterance = { source: "app" | "mic"; text: string; start: number; end: number; latency_ms: number; partial?: boolean; translation?: string | null };
 
 export type ProviderConfig =
   | { kind: "claude_cli"; model: string; binary?: string | null }
@@ -38,6 +38,7 @@ export type Settings = {
   ui_language: "id" | "en";
   translate_to: "" | "en" | "id";
   live_partials: boolean;
+  theme: "system" | "dark" | "light";
 };
 
 export type Meeting = {
@@ -60,7 +61,18 @@ export type SearchHit = { meeting_id: number; title: string; started_at: number;
 export type ModelInfo = { file: string; label: string; size_mb: number; installed: boolean };
 export type Action = "assist" | "ask" | "summary" | "followup" | "notulen" | "prep";
 
+/** "mac" or "windows" (Linux renders like Windows). Set on <html data-platform>. */
+export const platform: "mac" | "windows" = /Mac/i.test(navigator.userAgent) ? "mac" : "windows";
+export const isMac = platform === "mac";
+export const modKey = isMac ? "⌘" : "Ctrl+";
+
 export const api = {
+  openSettings: () => invoke<void>("open_settings_window"),
+  setMicMuted: (muted: boolean) => invoke<boolean>("set_mic_muted", { muted }),
+  listProviderModels: (provider: ProviderConfig, apiKey: string | null) =>
+    invoke<{ id: string; label: string }[]>("list_provider_models", { provider, apiKey }),
+  testProvider: (provider: ProviderConfig, apiKey: string | null) =>
+    invoke<{ ms: number; model: string | null; reply: string }>("test_provider", { provider, apiKey }),
   listAudioApps: () => invoke<AudioApp[]>("list_audio_apps"),
   startCapture: (appId: string | null, mic: boolean) =>
     invoke<{ dir: string; transcribing: boolean; warning: string | null }>("start_capture", { appId, mic }),
@@ -106,6 +118,15 @@ export const api = {
 export function fmtDate(ts: number) {
   const lang = document.querySelector("main")?.getAttribute("lang") === "en" ? "en-GB" : "id-ID";
   return new Date(ts * 1000).toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" });
+}
+
+/** Mail-style short date: time for today, otherwise day + month. */
+export function fmtShort(ts: number) {
+  const lang = document.querySelector("main")?.getAttribute("lang") === "en" ? "en-GB" : "id-ID";
+  const d = new Date(ts * 1000);
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString(lang, { day: "numeric", month: "short" });
 }
 
 export function keyAccount(p: ProviderConfig): string | null {
@@ -173,6 +194,10 @@ export function useAnswers() {
       listen<{ id: number; action: Action; title: string; provider: string }>("ai-start", (e) =>
         setAnswers((a) => [{ ...e.payload, text: "", done: false, error: null, ms: null }, ...a].slice(0, 30)),
       ),
+      // A new meeting starts with an empty assistant panel.
+      listen<unknown>("meeting-state", (e) => {
+        if (e.payload) setAnswers([]);
+      }),
       listen<{ id: number; delta: string }>("ai-delta", (e) =>
         setAnswers((a) => a.map((x) => (x.id === e.payload.id ? { ...x, text: x.text + e.payload.delta } : x))),
       ),
@@ -218,4 +243,11 @@ export function meter(rms: number | undefined) {
 export function fmtTime(t: number) {
   const s = Math.floor(t);
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** Applies the colour theme to this window ("system" follows the OS). */
+export function applyTheme(theme?: string) {
+  const el = document.documentElement;
+  if (theme === "dark" || theme === "light") el.dataset.theme = theme;
+  else delete el.dataset.theme;
 }

@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BICARA Windows Redesign</title>
+<script>
+  document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+</script>
+<style>
+  /* Windows 11 / Fluent 2 tokens. Accent = Windows accent (AccentColor) with the default blue as fallback. */
+  :root, :root[data-theme="light"] {
+    color-scheme: light;
+    --desk: #d6dbe3;
+    --mica: #f3f3f3;
+    --layer: #fbfbfb;
+    --card: #ffffff;
+    --stroke: rgba(0,0,0,.08);
+    --stroke2: rgba(0,0,0,.14);
+    --divider: rgba(0,0,0,.08);
+    --text: rgba(0,0,0,.9);
+    --text2: rgba(0,0,0,.62);
+    --text3: rgba(0,0,0,.56);
+    --subtle: rgba(0,0,0,.04);
+    --subtle2: rgba(0,0,0,.06);
+    --ctl: rgba(255,255,255,.7);
+    --ctl-bottom: rgba(0,0,0,.16);
+    --accent: #005fb8;
+    --accent-text: #005fb8;
+    --on-accent: #ffffff;
+    --red: #c42b1c;
+    --them: #005fb8;
+    --me: #0f7b0f;
+    --mark: rgba(0,95,184,.12);
+    --acrylic: rgba(249,249,249,.82);
+    --shadow: 0 0 0 1px rgba(0,0,0,.08), 0 32px 64px rgba(0,0,0,.18), 0 2px 21px rgba(0,0,0,.12);
+    --info: #f6f6f6;
+    --toggle-off: rgba(0,0,0,.62);
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --desk: #11151c;
+    --mica: #202020;
+    --layer: #272727;
+    --card: #2d2d2d;
+    --stroke: rgba(255,255,255,.07);
+    --stroke2: rgba(255,255,255,.1);
+    --divider: rgba(255,255,255,.08);
+    --text: #ffffff;
+    --text2: rgba(255,255,255,.79);
+    --text3: rgba(255,255,255,.62);
+    --subtle: rgba(255,255,255,.06);
+    --subtle2: rgba(255,255,255,.08);
+    --ctl: rgba(255,255,255,.06);
+    --ctl-bottom: rgba(255,255,255,.09);
+    --accent: #60cdff;
+    --accent-text: #99ebff;
+    --on-accent: #000000;
+    --red: #ff99a4;
+    --them: #60cdff;
+    --me: #6ccb5f;
+    --mark: rgba(96,205,255,.16);
+    --acrylic: rgba(44,44,44,.85);
+    --shadow: 0 0 0 1px rgba(0,0,0,.5), 0 32px 64px rgba(0,0,0,.55), 0 2px 21px rgba(0,0,0,.4);
+    --info: #2b2b2b;
+    --toggle-off: rgba(255,255,255,.79);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--desk); color: var(--text); font: 14px/20px "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .page { max-width: 1260px; margin: 0 auto; padding: 28px 16px 64px; }
+  .intro h1 { font-size: 28px; line-height: 36px; font-weight: 600; margin: 0 0 6px; }
+  .intro p { margin: 0 0 6px; color: var(--text2); max-width: 80ch; }
+  .switcher { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 16px 0 18px; }
+  .switcher .right { margin-left: auto; }
+  .screen { display: none; }
+  .screen.on { display: block; }
+  .note { color: var(--text2); font-size: 12px; line-height: 16px; margin: 10px 2px 0; max-width: 92ch; }
+
+  /* Fluent buttons */
+  .btn { font: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 32px; padding: 5px 12px 6px; border-radius: 4px; border: 1px solid var(--stroke); border-bottom-color: var(--ctl-bottom); background: var(--ctl); color: var(--text); cursor: default; white-space: nowrap; }
+  .btn:hover { background: var(--subtle2); }
+  .btn.accent { background: var(--accent); color: var(--on-accent); border-color: transparent; border-bottom-color: rgba(0,0,0,.2); }
+  .btn.subtle { background: transparent; border-color: transparent; }
+  .btn.subtle:hover { background: var(--subtle); }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+  .btn.danger { color: var(--red); }
+  /* toggle buttons used by the page switcher */
+  .tgl { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .tgl .btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  kbd { font: inherit; font-size: 12px; opacity: .8; }
+
+  /* ---------- window ---------- */
+  .win { background: var(--mica); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; height: 660px; }
+  .titlebar { height: 48px; flex: none; display: flex; align-items: center; gap: 0; padding-left: 12px; }
+  .titlebar .menu { width: 40px; height: 36px; display: grid; place-items: center; border-radius: 4px; color: var(--text); }
+  .titlebar .menu:hover { background: var(--subtle); }
+  .titlebar .menu svg { width: 16px; height: 16px; }
+  .titlebar img, .titlebar .appicon { width: 16px; height: 16px; border-radius: 3px; margin: 0 12px 0 8px; background: #1b2a6b; display: inline-block; }
+  .titlebar .apptitle { font-size: 12px; color: var(--text2); }
+  .titlebar .search { margin: 0 auto; width: min(360px, 34%); }
+  .caption { margin-left: auto; display: flex; height: 100%; }
+  .titlebar .search + .caption { margin-left: 0; }
+  .caption span { width: 46px; display: grid; place-items: center; color: var(--text); }
+  .caption span:hover { background: var(--subtle2); }
+  .caption span.close:hover { background: #c42b1c; color: #fff; }
+  .caption svg { width: 10px; height: 10px; }
+
+  .shell { flex: 1; min-height: 0; display: grid; grid-template-columns: 240px minmax(0, 1fr); }
+  .nav { display: flex; flex-direction: column; padding: 0 4px 6px; min-height: 0; }
+  .nav .items { flex: 1; overflow: auto; }
+  .nav a { position: relative; display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 12px; margin: 2px 4px; border-radius: 4px; color: var(--text); text-decoration: none; white-space: nowrap; overflow: hidden; }
+  .nav a:hover { background: var(--subtle); }
+  .nav a.on { background: var(--subtle2); }
+  .nav a.on::before { content: ""; position: absolute; left: 0; top: 50%; width: 3px; height: 16px; margin-top: -8px; border-radius: 2px; background: var(--accent); }
+  .nav a svg { width: 16px; height: 16px; flex: none; }
+  .nav a .t { overflow: hidden; text-overflow: ellipsis; }
+  .nav a .badge { margin-left: auto; font-size: 12px; color: var(--text3); }
+  .nav a .live { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex: none; }
+  .nav .hdr { font-size: 12px; font-weight: 600; color: var(--text2); padding: 12px 16px 4px; }
+  .nav .sep { height: 1px; background: var(--divider); margin: 4px 12px; }
+
+  .content { background: var(--layer); border-top-left-radius: 8px; border-top: 1px solid var(--stroke); border-left: 1px solid var(--stroke); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .cmdbar { flex: none; display: flex; align-items: center; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--divider); min-height: 52px; }
+  .cmdbar .ttl { display: grid; line-height: 1.2; margin-right: auto; min-width: 0; padding-left: 8px; }
+  .cmdbar .ttl b { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmdbar .ttl small { font-size: 12px; color: var(--text2); }
+  .cmdbar .vsep { width: 1px; height: 20px; background: var(--divider); margin: 0 4px; }
+  .lvl { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); padding: 0 6px; }
+  .bar { width: 56px; height: 4px; border-radius: 2px; background: var(--subtle2); position: relative; overflow: hidden; }
+  .bar i { position: absolute; inset: 0; background: var(--accent); transform-origin: left; }
+  .recdot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: inline-block; }
+
+  .panes { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+  .scroll { overflow: auto; }
+  .transcript { padding: 16px 24px 24px; }
+  .infobar { display: flex; align-items: center; gap: 12px; background: var(--info); border: 1px solid var(--stroke); border-radius: 4px; padding: 8px 12px; margin: 0 0 12px; font-size: 14px; }
+  .infobar svg { width: 16px; height: 16px; color: var(--accent-text); flex: none; }
+  .infobar b { font-weight: 600; }
+  .infobar span { color: var(--text2); }
+  .utt { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; padding: 8px 0; border-bottom: 1px solid var(--divider); }
+  .utt:last-child { border-bottom: 0; }
+  .utt .who { font-size: 12px; font-weight: 600; color: var(--them); }
+  .utt.me .who { color: var(--me); }
+  .utt .who small { display: block; font-weight: 400; color: var(--text3); }
+  .utt p { margin: 0; line-height: 22px; }
+  .utt p.tr { color: var(--text2); font-size: 13px; line-height: 20px; margin-top: 2px; }
+  .utt.partial p { color: var(--text3); }
+  .utt.asked p:first-child { background: var(--mark); border-radius: 2px; }
+
+  .reading { border-left: 1px solid var(--divider); background: var(--layer); display: flex; flex-direction: column; gap: 0; }
+  .rsec { padding: 14px 16px; border-bottom: 1px solid var(--divider); }
+  .rsec h5 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--text2); display: flex; justify-content: space-between; }
+  .rsec h5 span { font-weight: 400; }
+  .rsec .q { font-size: 16px; line-height: 22px; margin: 0; font-weight: 600; }
+  .rsec .ans p { margin: 0 0 6px; }
+  .rsec .ans ul { margin: 0; padding-left: 18px; }
+  .rsec .ans li { margin: 2px 0; }
+  .row-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .textbox { font: inherit; width: 100%; min-width: 0; min-height: 32px; padding: 5px 10px 6px; border-radius: 4px; border: 1px solid var(--stroke); border-bottom-color: var(--ctl-bottom); background: var(--ctl); color: var(--text); }
+  .textbox::placeholder { color: var(--text3); }
+  .textbox:focus { outline: none; border-bottom: 2px solid var(--accent); padding-bottom: 5px; }
+  .rsec .textbox { margin-top: 10px; }
+  .older { list-style: none; margin: 0; padding: 0; }
+  .older li { padding: 6px 0; display: grid; }
+  .older li + li { border-top: 1px solid var(--divider); }
+  .older small { color: var(--text3); font-size: 12px; }
+
+  /* setup / settings: Windows 11 Settings style */
+  .page-pad { padding: 20px 32px 32px; }
+  .ptitle { font-size: 28px; line-height: 36px; font-weight: 600; margin: 0 0 16px; }
+  .subtitle { font-size: 14px; font-weight: 600; margin: 18px 0 6px; }
+  .set { display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 12px 16px; background: var(--card); border: 1px solid var(--stroke); border-radius: 4px; margin-bottom: 4px; }
+  .set > svg { width: 20px; height: 20px; flex: none; color: var(--text); }
+  .set .lbl { flex: 1; min-width: 0; display: grid; }
+  .set .lbl small { color: var(--text2); font-size: 12px; line-height: 16px; }
+  .combo { font: inherit; display: inline-flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 200px; min-height: 32px; padding: 5px 10px 6px 11px; border-radius: 4px; border: 1px solid var(--stroke); border-bottom-color: var(--ctl-bottom); background: var(--ctl); color: var(--text); white-space: nowrap; }
+  .combo svg { width: 12px; height: 12px; color: var(--text2); }
+  .toggle { display: inline-flex; align-items: center; gap: 12px; color: var(--text); }
+  .toggle i { width: 40px; height: 20px; border-radius: 10px; border: 1px solid var(--toggle-off); position: relative; flex: none; }
+  .toggle i::after { content: ""; position: absolute; top: 3px; left: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--toggle-off); }
+  .toggle.on i { background: var(--accent); border-color: var(--accent); }
+  .toggle.on i::after { left: 22px; background: var(--on-accent); }
+  .set .textbox { max-width: 280px; }
+  .actions-end { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .ok { color: var(--me); font-weight: 600; }
+  .sb { display: inline-flex; border: 1px solid var(--stroke); border-radius: 4px; overflow: hidden; }
+  .sb span { padding: 5px 12px; }
+  .sb span.on { background: var(--accent); color: var(--on-accent); }
+
+  /* history */
+  .split { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); }
+  .list { border-right: 1px solid var(--divider); display: flex; flex-direction: column; min-height: 0; }
+  .list .search { padding: 10px 12px; border-bottom: 1px solid var(--divider); }
+  .list .items { overflow: auto; }
+  .li { position: relative; padding: 10px 14px 10px 16px; border-bottom: 1px solid var(--divider); display: grid; gap: 2px; }
+  .li .top { display: flex; justify-content: space-between; gap: 8px; }
+  .li b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .li .top span { color: var(--text2); font-size: 12px; flex: none; }
+  .li .snip { color: var(--text2); font-size: 12px; line-height: 16px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .li.on { background: var(--subtle2); }
+  .li.on::before { content: ""; position: absolute; left: 0; top: 50%; width: 3px; height: 16px; margin-top: -8px; border-radius: 2px; background: var(--accent); }
+  .pivot { display: flex; gap: 20px; padding: 0 24px; border-bottom: 1px solid var(--divider); }
+  .pivot span { padding: 10px 0 9px; color: var(--text2); position: relative; }
+  .pivot span.on { color: var(--text); font-weight: 600; }
+  .pivot span.on::after { content: ""; position: absolute; left: 50%; bottom: -1px; width: 16px; margin-left: -8px; height: 3px; border-radius: 2px; background: var(--accent); }
+  .detail { overflow: auto; padding: 18px 24px 28px; }
+  .detail h2 { font-size: 20px; line-height: 28px; font-weight: 600; margin: 0; }
+  .detail .sub { color: var(--text2); margin: 0 0 14px; font-size: 12px; }
+  .detail h3 { font-size: 14px; font-weight: 600; margin: 16px 0 4px; }
+  .detail p, .detail li { line-height: 22px; }
+  .detail ul { padding-left: 20px; margin: 0; }
+  table.t { border-collapse: collapse; width: 100%; margin-top: 4px; }
+  table.t th, table.t td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--divider); }
+  table.t th { font-size: 12px; font-weight: 600; color: var(--text2); }
+
+  /* overlay flyout */
+  .flywrap { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+  .fly { width: 360px; background: var(--acrylic); backdrop-filter: blur(30px) saturate(1.25); border: 1px solid var(--stroke2); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden; }
+  .fly .fhead { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; font-size: 12px; color: var(--text2); border-bottom: 1px solid var(--divider); }
+  .fly .fhead .x { margin-left: auto; width: 28px; height: 24px; display: grid; place-items: center; border-radius: 4px; }
+  .fly .fhead .x svg { width: 10px; height: 10px; }
+  .fly .fsec { padding: 10px 12px; }
+  .fly .fsec + .fsec { border-top: 1px solid var(--divider); }
+  .fly .live { color: var(--text2); font-size: 13px; }
+  .fly .live i { display: block; }
+  .fly ul { margin: 4px 0 0; padding-left: 18px; }
+  .fly .keys { display: flex; gap: 14px; font-size: 12px; color: var(--text2); }
+  .fly .keys b { color: var(--text); font-weight: 600; }
+
+  .ideas { columns: 2 340px; column-gap: 32px; margin: 18px 0 0; padding: 0; list-style: none; counter-reset: i; }
+  .ideas li { break-inside: avoid; margin: 0 0 12px; padding-left: 30px; position: relative; counter-increment: i; }
+  .ideas li::before { content: counter(i); position: absolute; left: 0; width: 22px; text-align: right; color: var(--text2); }
+  .ideas b { display: block; font-weight: 600; }
+  .ideas span { color: var(--text2); }
+  h2.sec { font-size: 20px; line-height: 28px; font-weight: 600; margin: 36px 0 0; }
+  code { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: 13px; }
+
+  @media (max-width: 900px) {
+    .win { height: auto; }
+    .shell { grid-template-columns: 1fr; }
+    .nav { display: none; }
+    .panes, .split { grid-template-columns: 1fr; }
+    .reading { border-left: 0; border-top: 1px solid var(--divider); }
+    .list { display: none; }
+    .titlebar .search { display: none; }
+    .titlebar .search + .caption { margin-left: auto; }
+    .content { border-left: 0; border-radius: 0; }
+    .page-pad { padding: 16px; }
+    .set { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="f-menu" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+  <symbol id="f-add" viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+  <symbol id="f-wave" viewBox="0 0 16 16"><path d="M2.5 7v2M5 4.5v7M8 2v12M11 4.5v7M13.5 7v2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+  <symbol id="f-doc" viewBox="0 0 16 16"><path d="M4 1.5h5l3.5 3.5v9.5H4z M9 1.5V5h3.5M6 8.5h4.5M6 11h4.5" stroke="currentColor" stroke-width="1" fill="none" stroke-linejoin="round"/></symbol>
+  <symbol id="f-history" viewBox="0 0 16 16"><path d="M2.5 8a5.5 5.5 0 105.5-5.5A5.5 5.5 0 003.4 5M2.5 2.5V5H5M8 5v3.2l2.2 1.3" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="f-settings" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1" fill="none"/><path d="M6.8 1.5h2.4l.4 1.8 1.3.7 1.7-.7 1.2 2.1-1.3 1.2v1.6l1.3 1.2-1.2 2.1-1.7-.7-1.3.7-.4 1.8H6.8l-.4-1.8-1.3-.7-1.7.7-1.2-2.1 1.3-1.2V7.2L2.2 6l1.2-2.1 1.7.7 1.3-.7z" stroke="currentColor" stroke-width="1" fill="none" stroke-linejoin="round"/></symbol>
+  <symbol id="f-eyeoff" viewBox="0 0 16 16"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" stroke="currentColor" stroke-width="1" fill="none"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1" fill="none"/><path d="M2.5 13.5l11-11" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+  <symbol id="f-stop" viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1" fill="none"/></symbol>
+  <symbol id="f-pane" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" stroke-width="1" fill="none"/><path d="M10 2.5v11" stroke="currentColor" stroke-width="1"/></symbol>
+  <symbol id="f-share" viewBox="0 0 16 16"><path d="M10 2.5l3.5 3.5L10 9.5M13.5 6H8a5 5 0 00-5 5v2" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="f-search" viewBox="0 0 16 16"><circle cx="9.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1" fill="none"/><path d="M6.3 9.7L2 14" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+  <symbol id="f-mic" viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5" stroke="currentColor" stroke-width="1" fill="none"/><path d="M3.5 7.5a4.5 4.5 0 009 0M8 12v2.5M5.5 14.5h5" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="f-app" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1" fill="none"/><path d="M5.5 14h5M8 11.5V14" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+  <symbol id="f-globe" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1" fill="none"/><path d="M1.5 8h13M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13" stroke="currentColor" stroke-width="1" fill="none"/></symbol>
+  <symbol id="f-translate" viewBox="0 0 16 16"><path d="M2 3.5h7M5.5 2v1.5M3.5 3.5c.5 2.5 2.5 4.5 5 5.5M7.5 3.5c-.5 2.5-2.5 4.5-5 5.5M8.5 14l2.5-6 2.5 6M9.3 12h3.4" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="f-tag" viewBox="0 0 16 16"><path d="M1.5 2.5v5l7 7 6-6-7-7h-5z" stroke="currentColor" stroke-width="1" fill="none" stroke-linejoin="round"/><circle cx="4.5" cy="5" r="1" fill="currentColor"/></symbol>
+  <symbol id="f-shield" viewBox="0 0 16 16"><path d="M8 1.5l5.5 2v4.2c0 3.3-2.3 5.8-5.5 6.8-3.2-1-5.5-3.5-5.5-6.8V3.5z M5.5 8l1.8 1.8L10.8 6.3" stroke="currentColor" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="f-bot" viewBox="0 0 16 16"><rect x="2.5" y="4.5" width="11" height="8" rx="2" stroke="currentColor" stroke-width="1" fill="none"/><path d="M8 4.5V2M6 8.5v.5M10 8.5v.5M5.5 14.5h5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
+  <symbol id="f-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1" fill="none"/><path d="M8 7v4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="4.8" r=".8" fill="currentColor"/></symbol>
+  <symbol id="f-attach" viewBox="0 0 16 16"><path d="M11.5 7.5L7 12a2.8 2.8 0 01-4-4l5-5a1.9 1.9 0 012.7 2.7l-5 5a.9.9 0 01-1.3-1.3L9 5" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="f-down" viewBox="0 0 12 12"><path d="M2.5 4.5L6 8l3.5-3.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="c-min" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></symbol>
+  <symbol id="c-max" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1" fill="none"/></symbol>
+  <symbol id="c-close" viewBox="0 0 10 10"><path d="M.5.5l9 9M9.5.5l-9 9" stroke="currentColor" stroke-width="1"/></symbol>
+</svg>
+
+<div class="page">
+  <section class="intro">
+    <h1>BICARA for Windows: native redesign</h1>
+    <p>The same features and screens as the macOS preview, laid out like a normal Windows 11 app (Settings, Outlook, Windows Terminal): Mica window backdrop, title bar with caption buttons on the right, a NavigationView on the left with Settings at the bottom, Segoe UI Variable, Fluent controls and the <b>Windows accent colour</b>.</p>
+  </section>
+
+  <div class="switcher">
+    <div class="tgl" role="group" aria-label="Layar">
+      <button class="btn" data-s="live" aria-pressed="true">Meeting berlangsung</button>
+      <button class="btn" data-s="setup" aria-pressed="false">Meeting baru</button>
+      <button class="btn" data-s="history" aria-pressed="false">Riwayat</button>
+      <button class="btn" data-s="prefs" aria-pressed="false">Pengaturan</button>
+      <button class="btn" data-s="fly" aria-pressed="false">Overlay</button>
+    </div>
+    <div class="tgl right" role="group" aria-label="Tema">
+      <button class="btn" data-t="light">Terang</button>
+      <button class="btn" data-t="dark">Gelap</button>
+    </div>
+  </div>
+
+  <!-- ===================== LIVE ===================== -->
+  <section class="screen on" id="live">
+    <div class="win">
+      <div class="titlebar">
+        <span class="menu"><svg><use href="#f-menu"/></svg></span><span class="appicon"></span><span class="apptitle">BICARA</span>
+        <div class="search"><input class="textbox" placeholder="Cari meeting, transkrip, notulen" aria-label="Cari"></div>
+        <div class="caption"><span><svg><use href="#c-min"/></svg></span><span><svg><use href="#c-max"/></svg></span><span class="close"><svg><use href="#c-close"/></svg></span></div>
+      </div>
+      <div class="shell">
+        <nav class="nav">
+          <div class="items">
+            <a href="#"><svg><use href="#f-add"/></svg><span class="t">Meeting baru</span></a>
+            <div class="hdr">Sekarang</div>
+            <a href="#" class="on"><svg><use href="#f-wave"/></svg><span class="t">Scoping Red Team · ABC</span><i class="live"></i></a>
+            <div class="hdr">Terbaru</div>
+            <a href="#"><svg><use href="#f-doc"/></svg><span class="t">Interview Backend Engineer</span></a>
+            <a href="#"><svg><use href="#f-doc"/></svg><span class="t">Rapat OKR Q4</span></a>
+            <a href="#"><svg><use href="#f-history"/></svg><span class="t">Riwayat</span><span class="badge">24</span></a>
+          </div>
+          <div class="sep"></div>
+          <a href="#"><svg><use href="#f-eyeoff"/></svg><span class="t">Siluman: aktif</span></a>
+          <a href="#"><svg><use href="#f-settings"/></svg><span class="t">Pengaturan</span></a>
+        </nav>
+        <main class="content">
+          <div class="cmdbar">
+            <div class="ttl"><b>Scoping Red Team · ABC</b><small><span class="recdot"></span> Merekam · Zoom · 12:41</small></div>
+            <span class="lvl">Mereka <span class="bar"><i style="transform:scaleX(.55)"></i></span></span>
+            <span class="lvl">Saya <span class="bar"><i style="transform:scaleX(.12)"></i></span></span>
+            <span class="vsep"></span>
+            <button class="btn subtle danger"><svg><use href="#f-stop"/></svg>Akhiri</button>
+            <button class="btn subtle"><svg><use href="#f-pane"/></svg>Asisten</button>
+          </div>
+          <div class="panes">
+            <article class="scroll transcript" aria-label="Transkrip">
+              <div class="infobar"><svg><use href="#f-info"/></svg><b>Transkripsi lokal aktif</b><span>Terjemahan ke English · 3 dokumen konteks · Formal</span></div>
+              <div class="utt"><div class="who">Mereka<small>11:58</small></div><div><p>Untuk upgrade PHP ini, apakah gateway juga perlu kita masukkan ke scope pengujian?</p><p class="tr">For this PHP upgrade, should the gateway also be included in the test scope?</p></div></div>
+              <div class="utt me"><div class="who">Saya<small>12:10</small></div><div><p>Kalau gateway tidak terdampak dan tidak berubah, menurut kami cukup fokus di backend.</p><p class="tr">If the gateway is unaffected and unchanged, we think focusing on the backend is enough.</p></div></div>
+              <div class="utt asked"><div class="who">Mereka<small>12:31</small></div><div><p>Oke, tapi bagaimana kalau ada konfigurasi forwarder yang ikut diubah?</p><p class="tr">Okay, but what if some forwarder configuration is changed as well?</p></div></div>
+              <div class="utt partial"><div class="who">Mereka<small>12:39</small></div><div><p>Terus untuk timeline-nya kira-kira…</p></div></div>
+            </article>
+            <aside class="scroll reading" aria-label="Asisten">
+              <div class="rsec"><h5>Pertanyaan <span>12:31</span></h5><p class="q">Bagaimana kalau ada konfigurasi forwarder yang ikut diubah?</p></div>
+              <div class="rsec"><h5>Saran jawaban <span>Claude · 2,1 dtk</span></h5>
+                <div class="ans"><p><b>Forwarder masuk scope hanya jika konfigurasinya berubah.</b></p>
+                  <ul><li>Minta daftar perubahan konfigurasi dari tim infra.</li><li>Kalau routing/header berubah, uji jalur Forwarder → Backend.</li><li>Gateway tetap di luar scope selama tidak tersentuh.</li></ul></div>
+              </div>
+              <div class="rsec">
+                <div class="row-btns"><button class="btn accent">Bantu jawab <kbd>Ctrl+Shift+J</kbd></button><button class="btn">Lanjutan</button><button class="btn">Ringkas</button></div>
+                <input class="textbox" placeholder="Tanya soal percakapan ini…" aria-label="Tanya AI">
+              </div>
+              <div class="rsec"><h5>Sebelumnya</h5>
+                <ul class="older"><li>Gateway di luar scope jika tidak berubah<small>Saran jawaban · 12:11</small></li><li>Ringkasan 10 menit pertama<small>Ringkas · 12:05</small></li></ul>
+              </div>
+            </aside>
+          </div>
+        </main>
+      </div>
+    </div>
+    <p class="note">Mica backdrop behind the title bar and navigation; content sits on a lighter layer with a rounded top-left corner, like Windows 11 Settings. A CommandBar replaces the Mac toolbar, an InfoBar replaces the Mac status bar, and the assistant is a reading pane on the right like Outlook.</p>
+  </section>
+
+  <!-- ===================== SETUP ===================== -->
+  <section class="screen" id="setup">
+    <div class="win">
+      <div class="titlebar">
+        <span class="menu"><svg><use href="#f-menu"/></svg></span><span class="appicon"></span><span class="apptitle">BICARA</span>
+        <div class="search"><input class="textbox" placeholder="Cari meeting, transkrip, notulen" aria-label="Cari"></div>
+        <div class="caption"><span><svg><use href="#c-min"/></svg></span><span><svg><use href="#c-max"/></svg></span><span class="close"><svg><use href="#c-close"/></svg></span></div>
+      </div>
+      <div class="shell">
+        <nav class="nav">
+          <div class="items">
+            <a href="#" class="on"><svg><use href="#f-add"/></svg><span class="t">Meeting baru</span></a>
+            <div class="hdr">Terbaru</div>
+            <a href="#"><svg><use href="#f-doc"/></svg><span class="t">Interview Backend Engineer</span></a>
+            <a href="#"><svg><use href="#f-doc"/></svg><span class="t">Rapat OKR Q4</span></a>
+            <a href="#"><svg><use href="#f-history"/></svg><span class="t">Riwayat</span><span class="badge">24</span></a>
+          </div>
+          <div class="sep"></div>
+          <a href="#"><svg><use href="#f-eyeoff"/></svg><span class="t">Siluman: mati</span></a>
+          <a href="#"><svg><use href="#f-settings"/></svg><span class="t">Pengaturan</span></a>
+        </nav>
+        <main class="content scroll">
+          <div class="page-pad">
+            <h2 class="ptitle">Meeting baru</h2>
+            <div class="set"><svg><use href="#f-tag"/></svg><div class="lbl">Judul</div><input class="textbox" value="Scoping Red Team · ABC" aria-label="Judul"></div>
+            <div class="set"><svg><use href="#f-bot"/></svg><div class="lbl">Jenis meeting<small>Menentukan gaya bantuan AI</small></div><span class="combo">Rapat dengan klien<svg><use href="#f-down"/></svg></span></div>
+            <div class="set"><svg><use href="#f-globe"/></svg><div class="lbl">Bahasa percakapan</div><span class="combo">Bahasa Indonesia<svg><use href="#f-down"/></svg></span></div>
+            <div class="set"><svg><use href="#f-translate"/></svg><div class="lbl">Terjemahan langsung<small>Setiap kalimat diterjemahkan oleh AI</small></div><span class="combo">Ke English<svg><use href="#f-down"/></svg></span></div>
+            <h3 class="subtitle">Audio</h3>
+            <div class="set"><svg><use href="#f-app"/></svg><div class="lbl">Aplikasi meeting<small>Suara “Mereka”. Untuk Google Meet, pilih browser-nya.</small></div><span class="combo">Zoom<svg><use href="#f-down"/></svg></span></div>
+            <div class="set"><svg><use href="#f-mic"/></svg><div class="lbl">Mikrofon<small>Suara “Saya”</small></div><span class="combo">Microphone Array (Realtek)<svg><use href="#f-down"/></svg></span></div>
+            <h3 class="subtitle">Dokumen konteks</h3>
+            <div class="set"><svg><use href="#f-doc"/></svg><div class="lbl">Proposal-Pentest-ABC.pdf<small>12 halaman</small></div><button class="btn">Hapus</button></div>
+            <div class="set"><svg><use href="#f-doc"/></svg><div class="lbl">Arsitektur-Forwarder-Gateway.docx<small>4 halaman</small></div><button class="btn">Hapus</button></div>
+            <div class="set"><svg><use href="#f-attach"/></svg><div class="lbl">Tambah dokumen<small>PDF, Word, PowerPoint, teks</small></div><button class="btn">Pilih file</button></div>
+            <h3 class="subtitle">Privasi</h3>
+            <div class="set"><svg><use href="#f-shield"/></svg><div class="lbl">Peserta sudah diberi tahu bahwa meeting direkam<small>UU PDP</small></div><span class="toggle on">Aktif<i></i></span></div>
+            <div class="actions-end"><button class="btn accent">Mulai meeting</button></div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <p class="note">Setup uses the Windows 11 Settings pattern: a 28 px page title and one row per setting (icon, title and description left, control right). Dropdowns are Fluent ComboBoxes, the consent checkbox is a ToggleSwitch with its On/Off label on the left.</p>
+  </section>
+
+  <!-- ===================== HISTORY ===================== -->
+  <section class="screen" id="history">
+    <div class="win">
+      <div class="titlebar">
+        <span class="menu"><svg><use href="#f-menu"/></svg></span><span class="appicon"></span><span class="apptitle">BICARA</span>
+        <div class="search"><input class="textbox" placeholder="Cari meeting, transkrip, notulen" aria-label="Cari"></div>
+        <div class="caption"><span><svg><use href="#c-min"/></svg></span><span><svg><use href="#c-max"/></svg></span><span class="close"><svg><use href="#c-close"/></svg></span></div>
+      </div>
+      <div class="shell">
+        <nav class="nav">
+          <div class="items">
+            <a href="#"><svg><use href="#f-add"/></svg><span class="t">Meeting baru</span></a>
+            <div class="hdr">Riwayat</div>
+            <a href="#" class="on"><svg><use href="#f-history"/></svg><span class="t">Semua meeting</span><span class="badge">24</span></a>
+            <a href="#"><svg><use href="#f-doc"/></svg><span class="t">Rapat</span><span class="badge">11</span></a>
+            <a href="#"><svg><use href="#f-doc"/></svg><span class="t">Interview</span><span class="badge">8</span></a>
+            <a href="#"><svg><use href="#f-doc"/></svg><span class="t">Klien</span><span class="badge">5</span></a>
+          </div>
+          <div class="sep"></div>
+          <a href="#"><svg><use href="#f-eyeoff"/></svg><span class="t">Siluman: mati</span></a>
+          <a href="#"><svg><use href="#f-settings"/></svg><span class="t">Pengaturan</span></a>
+        </nav>
+        <main class="content">
+          <div class="split" style="flex:1;min-height:0">
+            <div class="list">
+              <div class="search"><input class="textbox" placeholder="Cari di Semua meeting" aria-label="Cari di daftar"></div>
+              <div class="items">
+                <div class="li on"><div class="top"><b>Scoping Red Team · ABC</b><span>12.40</span></div><div class="snip">Gateway di luar scope selama tidak berubah; forwarder diuji jika konfigurasinya berubah.</div></div>
+                <div class="li"><div class="top"><b>Interview Backend Engineer</b><span>10.00</span></div><div class="snip">Kandidat kuat di Go dan PostgreSQL, perlu digali soal desain sistem.</div></div>
+                <div class="li"><div class="top"><b>Rapat OKR Q4</b><span>Selasa</span></div><div class="snip">Target churn turun 2%, peluncuran fitur ekspor dipindah ke Desember.</div></div>
+                <div class="li"><div class="top"><b>Demo produk ke klien</b><span>Senin</span></div><div class="snip">Klien minta integrasi SSO dan harga untuk 50 pengguna.</div></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;min-height:0;min-width:0">
+              <div class="cmdbar">
+                <div class="ttl"><b>Scoping Red Team · ABC</b><small>Kamis, 12 Nov · 48 menit</small></div>
+                <button class="btn subtle"><svg><use href="#f-share"/></svg>Bagikan</button>
+              </div>
+              <div class="pivot" role="tablist"><span class="on">Notulen</span><span>Transkrip</span><span>AI</span></div>
+              <article class="detail">
+                <h2>Scoping Red Team · ABC</h2>
+                <p class="sub">Notulen · Rapat dengan klien · 3 peserta</p>
+                <h3>Ringkasan</h3>
+                <p>Klien ABC melakukan upgrade PHP di backend. Disepakati pengujian fokus pada backend; gateway tidak diuji terpisah selama tidak terdampak dan tidak berubah.</p>
+                <h3>Keputusan</h3>
+                <ul><li>Scope: Backend (PHP 8.3) dan jalur Forwarder → Backend.</li><li>Gateway di luar scope, dengan catatan risiko.</li></ul>
+                <h3>Tindak lanjut</h3>
+                <table class="t"><thead><tr><th>Tugas</th><th>PIC</th><th>Tenggat</th></tr></thead><tbody>
+                  <tr><td>Kirim daftar perubahan konfigurasi forwarder</td><td>Tim infra ABC</td><td>15 Nov</td></tr>
+                  <tr><td>Revisi dokumen scope</td><td>Saya</td><td>16 Nov</td></tr></tbody></table>
+              </article>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <p class="note">History is an Outlook-style list/detail: the selected meeting gets the same accent pill as the navigation, and Notulen / Transkrip / AI is a Fluent SelectorBar (text tabs with a short accent underline). Share opens the Windows share sheet plus Word / Markdown / WhatsApp.</p>
+  </section>
+
+  <!-- ===================== SETTINGS ===================== -->
+  <section class="screen" id="prefs">
+    <div class="win">
+      <div class="titlebar">
+        <span class="menu"><svg><use href="#f-menu"/></svg></span><span class="appicon"></span><span class="apptitle">BICARA</span>
+        <div class="search"><input class="textbox" placeholder="Cari pengaturan" aria-label="Cari pengaturan"></div>
+        <div class="caption"><span><svg><use href="#c-min"/></svg></span><span><svg><use href="#c-max"/></svg></span><span class="close"><svg><use href="#c-close"/></svg></span></div>
+      </div>
+      <div class="shell">
+        <nav class="nav">
+          <div class="items">
+            <a href="#"><svg><use href="#f-add"/></svg><span class="t">Meeting baru</span></a>
+            <a href="#"><svg><use href="#f-history"/></svg><span class="t">Riwayat</span><span class="badge">24</span></a>
+          </div>
+          <div class="sep"></div>
+          <a href="#"><svg><use href="#f-eyeoff"/></svg><span class="t">Siluman: mati</span></a>
+          <a href="#" class="on"><svg><use href="#f-settings"/></svg><span class="t">Pengaturan</span></a>
+        </nav>
+        <main class="content scroll">
+          <div class="page-pad">
+            <h2 class="ptitle">Pengaturan</h2>
+            <div class="pivot" style="padding:0;margin:-6px 0 14px" role="tablist"><span>Umum</span><span class="on">AI</span><span>Transkripsi</span><span>Bahasa</span><span>Siluman</span><span>Privasi</span></div>
+            <h3 class="subtitle" style="margin-top:0">Penyedia AI</h3>
+            <div class="set"><svg><use href="#f-bot"/></svg><div class="lbl">Penyedia<small>Memakai langganan kamu lewat CLI, tanpa API key</small></div><span class="combo">Langganan Claude (CLI)<svg><use href="#f-down"/></svg></span></div>
+            <div class="set"><svg><use href="#f-tag"/></svg><div class="lbl">Model</div><span class="combo">Sonnet<svg><use href="#f-down"/></svg></span></div>
+            <div class="set"><svg><use href="#f-info"/></svg><div class="lbl">Status<small>claude.exe ditemukan di %APPDATA%\npm</small></div><span class="ok">Siap</span></div>
+            <h3 class="subtitle">Perilaku</h3>
+            <div class="set"><svg><use href="#f-wave"/></svg><div class="lbl">Bantu otomatis<small>Sarankan jawaban saat “Mereka” bertanya</small></div><span class="toggle on">Aktif<i></i></span></div>
+            <div class="set"><svg><use href="#f-globe"/></svg><div class="lbl">Gaya bahasa</div><span class="sb"><span class="on">Formal</span><span>Santai</span></span></div>
+            <div class="set"><svg><use href="#f-doc"/></svg><div class="lbl">Preset bawaan</div><span class="combo">Rapat<svg><use href="#f-down"/></svg></span></div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <p class="note">On Windows, settings are a page inside the main window (pinned at the bottom of the navigation), not a separate window. Sections are a SelectorBar under the page title; each setting is a Windows 11 settings row.</p>
+  </section>
+
+  <!-- ===================== OVERLAY ===================== -->
+  <section class="screen" id="fly">
+    <div class="flywrap">
+      <div class="fly" role="complementary" aria-label="Overlay">
+        <div class="fhead"><span class="recdot"></span>BICARA · 12:41<span class="x"><svg><use href="#c-close"/></svg></span></div>
+        <div class="fsec live">Terus untuk timeline-nya kira-kira…<i>And for the timeline, roughly…</i></div>
+        <div class="fsec"><b>Forwarder masuk scope hanya jika konfigurasinya berubah.</b><ul><li>Minta daftar perubahan dari tim infra.</li><li>Gateway tetap di luar scope.</li></ul></div>
+        <div class="fsec keys"><span><b>Ctrl+Shift+J</b> bantu jawab</span><span><b>Ctrl+Shift+H</b> sembunyikan</span></div>
+      </div>
+      <p class="note" style="max-width:48ch;margin:0">The overlay is a Fluent flyout: acrylic (blurred, translucent) background, 8 px corners, a thin stroke and the standard flyout shadow. It follows the light/dark theme like other Windows flyouts, stays on top and is excluded from screen capture.</p>
+    </div>
+  </section>
+
+  <h2 class="sec">Ideas for Windows</h2>
+  <ol class="ideas">
+    <li><b>Mica backdrop</b><span>Real Mica behind the title bar and navigation on Windows 11 (window-vibrancy crate, <code>apply_mica</code>); plain grey on Windows 10.</span></li>
+    <li><b>Custom title bar, native caption buttons</b><span>Tauri <code>decorations: false</code> with a drag region, app icon and title on the left, a search box in the middle, and WinUI-style minimise / maximise / close on the right (keeps Snap Layouts on hover via the maximise button).</span></li>
+    <li><b>NavigationView</b><span>Left navigation with a hamburger to collapse it, 16 px line icons, accent pill on the selected item; Siluman and Pengaturan pinned at the bottom.</span></li>
+    <li><b>Settings as a page</b><span>Windows puts settings inside the app (Ctrl+,), with Settings-app style rows: icon, title, description, control on the right.</span></li>
+    <li><b>Windows accent colour</b><span>Use the user's accent from Personalisation (CSS <code>AccentColor</code>; Tauri can also read it); default blue #005FB8 / #60CDFF.</span></li>
+    <li><b>Segoe UI Variable + Fluent type ramp</b><span>Body 14 px, caption 12 px, subtitle 20 px, title 28 px; no letter-spaced capitals.</span></li>
+    <li><b>Fluent controls</b><span>4 px radius buttons with a subtle bottom edge, accent button for the main action, ComboBox, ToggleSwitch, TextBox with an accent underline on focus.</span></li>
+    <li><b>CommandBar and InfoBar</b><span>Actions (Akhiri, Asisten, Bagikan) as icon + label buttons in a command bar; status as an InfoBar instead of a Mac-style status bar.</span></li>
+    <li><b>Outlook-style panes</b><span>Transcript as the main pane with a reading pane for the assistant; history as list + detail.</span></li>
+    <li><b>Tray icon</b><span>Notification-area icon with Start / Stop meeting, Siluman on/off and the shortcuts; closing the window can minimise to tray.</span></li>
+    <li><b>Ctrl shortcuts</b><span>Ctrl+N meeting baru, Ctrl+Shift+J bantu jawab, Ctrl+Shift+H sembunyikan, Ctrl+, pengaturan, Ctrl+F cari.</span></li>
+    <li><b>Taskbar integration</b><span>Taskbar progress while notulen is being written and a red overlay badge while recording.</span></li>
+    <li><b>Toast notifications</b><span>“Notulen siap” and “Pertanyaan terdeteksi” as Windows toasts that open the meeting when clicked.</span></li>
+    <li><b>Acrylic overlay flyout</b><span>Small translucent always-on-top panel, hidden from screen capture (WDA_EXCLUDEFROMCAPTURE).</span></li>
+    <li><b>Installer</b><span>NSIS setup <code>.exe</code> (per-user install, no admin) as the main download; <code>.msi</code> optional for managed PCs.</span></li>
+    <li><b>Unsigned build</b><span>Without code signing, SmartScreen shows “Windows protected your PC” → More info → Run anyway. Fine for personal use.</span></li>
+    <li><b>Respect Windows settings</b><span>Follow light/dark, accent, text scaling and “Show animations” (reduced motion) from Windows Settings.</span></li>
+    <li><b>Remember window state</b><span>Restore size, position, navigation collapsed state and pane width on next launch.</span></li>
+  </ol>
+</div>
+<script>
+  const root = document.documentElement;
+  const sBtns = document.querySelectorAll("[data-s]");
+  sBtns.forEach((b) => b.addEventListener("click", () => {
+    sBtns.forEach((x) => x.setAttribute("aria-pressed", x === b));
+    document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.id === b.dataset.s));
+  }));
+  const tBtns = document.querySelectorAll("[data-t]");
+  const setT = (t) => { root.dataset.theme = t; tBtns.forEach((x) => x.setAttribute("aria-pressed", x.dataset.t === t)); };
+  tBtns.forEach((b) => b.addEventListener("click", () => setT(b.dataset.t)));
+  setT(root.dataset.theme);
+</script>
+</body>
+</html>

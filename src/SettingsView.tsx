@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useT, presetName, UiLang } from "./i18n";
 import { listen } from "@tauri-apps/api/event";
 import { api, keyAccount, ModelInfo, Preset, ProviderConfig, Settings } from "./api";
+import { IRefresh } from "./Icons";
 
 type Kind = ProviderConfig["kind"];
 
@@ -26,7 +27,9 @@ function defaultFor(kind: Kind): ProviderConfig {
   }
 }
 
-export default function SettingsView({ settings, onSaved }: { settings: Settings; onSaved: (s: Settings) => void }) {
+export type SettingsTab = "umum" | "ai" | "transkripsi" | "preset" | "siluman" | "privasi";
+
+export default function SettingsView({ settings, onSaved, tab }: { settings: Settings; onSaved: (s: Settings) => void; tab: SettingsTab }) {
   const t = useT();
   const [draft, setDraft] = useState<Settings>(settings);
   const [clis, setClis] = useState<{ claude: string | null; codex: string | null } | null>(null);
@@ -96,101 +99,21 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
   };
 
   return (
-    <div className="settings">
-      <section className="card">
-        <h2>{t("Model AI")}</h2>
-        <div className="radio-grid" role="radiogroup" aria-label={t("Penyedia AI")}>
-          {(
-            [
-              ["claude_cli", t("Claude (langganan)"), clis?.claude ? t("CLI ditemukan") : t("CLI `claude` belum terpasang")],
-              ["codex_cli", t("Codex / ChatGPT (langganan)"), clis?.codex ? t("CLI ditemukan") : t("CLI `codex` belum terpasang")],
-              ["anthropic", t("Anthropic API"), t("pakai API key")],
-              ["open_ai_compatible", t("OpenAI-compatible"), "OpenAI, Groq, OpenRouter, Ollama, LM Studio"],
-            ] as [Kind, string, string][]
-          ).map(([k, label, hint]) => (
-            <label key={k} className={`radio ${prov.kind === k ? "on" : ""}`}>
-              <input type="radio" name="provider" checked={prov.kind === k} onChange={() => setProv(defaultFor(k))} />
-              <span className="radio-label">{label}</span>
-              <span className="radio-hint">{hint}</span>
-            </label>
-          ))}
-        </div>
+    <>
+    <div className="scroll"><div className="settings">
+      {tab === "ai" && (
+        <AiTab
+          prov={prov}
+          setProv={setProv}
+          clis={clis}
+          account={account}
+          apiKey={key}
+          setApiKey={setKey}
+          hasKey={hasKey}
+        />
+      )}
 
-        {prov.kind === "claude_cli" && (
-          <div className="fields">
-            <label className="field">
-              <span>{t("Model")}</span>
-              <select value={prov.model} onChange={(e) => setProv({ ...prov, model: e.target.value })}>
-                <option value="haiku">{t("Haiku — paling cepat")}</option>
-                <option value="sonnet">{t("Sonnet — seimbang")}</option>
-                <option value="opus">{t("Opus — paling pintar, lebih lambat")}</option>
-              </select>
-            </label>
-            <p className="hint">
-              {t("Memakai login Claude Code kamu sendiri (Pro/Max). BICARA tidak membaca token kamu. Belum login? Jalankan")}{" "}
-              <code>claude</code> {t("sekali di terminal.")} {clis?.claude && <>{t("Ditemukan:")} <code>{clis.claude}</code></>}
-            </p>
-          </div>
-        )}
-        {prov.kind === "codex_cli" && (
-          <div className="fields">
-            <label className="field">
-              <span>{t("Model (kosongkan untuk default)")}</span>
-              <input value={prov.model ?? ""} onChange={(e) => setProv({ ...prov, model: e.target.value || null })} placeholder="default" />
-            </label>
-            <p className="hint">
-              {t("Memakai login ChatGPT di Codex CLI (gratis atau berbayar). Pasang Codex CLI lalu jalankan")} <code>codex login</code>.
-              {t("Codex mengirim jawaban sekaligus (tidak per kata).")}
-            </p>
-          </div>
-        )}
-        {prov.kind === "anthropic" && (
-          <div className="fields">
-            <label className="field">
-              <span>{t("Model")}</span>
-              <input value={prov.model} onChange={(e) => setProv({ ...prov, model: e.target.value })} />
-            </label>
-            <label className="field">
-              <span>{t("Effort")}</span>
-              <select value={prov.effort} onChange={(e) => setProv({ ...prov, effort: e.target.value })}>
-                <option value="low">{t("Low — tercepat")}</option>
-                <option value="medium">{t("Medium")}</option>
-                <option value="high">{t("High")}</option>
-              </select>
-            </label>
-          </div>
-        )}
-        {prov.kind === "open_ai_compatible" && (
-          <div className="fields">
-            <label className="field">
-              <span>{t("Layanan")}</span>
-              <select
-                value={prov.label in OPENAI_PRESETS ? prov.label : "OpenAI"}
-                onChange={(e) => setProv({ kind: "open_ai_compatible", label: e.target.value, ...OPENAI_PRESETS[e.target.value] })}
-              >
-                {Object.keys(OPENAI_PRESETS).map((k) => (
-                  <option key={k}>{k}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>{t("Base URL")}</span>
-              <input value={prov.base_url} onChange={(e) => setProv({ ...prov, base_url: e.target.value })} />
-            </label>
-            <label className="field">
-              <span>{t("Model")}</span>
-              <input value={prov.model} onChange={(e) => setProv({ ...prov, model: e.target.value })} />
-            </label>
-          </div>
-        )}
-        {account && (
-          <label className="field">
-            <span>{t("API key")} {hasKey ? t("(tersimpan di keychain — isi untuk mengganti)") : ""}</span>
-            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={hasKey ? "••••••••" : t("tempel API key")} autoComplete="off" />
-          </label>
-        )}
-      </section>
-
+      {tab === "umum" && (
       <section className="card">
         <h2>{t("Bahasa & mikrofon")}</h2>
         <div className="fields">
@@ -207,6 +130,14 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
               <option value="id">{t("Bahasa Indonesia")}</option>
               <option value="en">{t("English")}</option>
               <option value="auto">{t("Otomatis (Indonesia / English)")}</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>{t("Tema")}</span>
+            <select value={draft.theme ?? "system"} onChange={(e) => setDraft({ ...draft, theme: e.target.value as Settings["theme"] })}>
+              <option value="system">{t("Ikuti sistem")}</option>
+              <option value="dark">{t("Gelap")}</option>
+              <option value="light">{t("Terang")}</option>
             </select>
           </label>
           <label className="field">
@@ -236,7 +167,9 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
         <p className="hint">{t("Terjemahan memakai penyedia AI (Haiku untuk langganan Claude), satu baris setiap kali.")}</p>
         <p className="hint">{t("“Otomatis” cocok untuk meeting campuran, tapi sedikit kurang akurat dibanding memilih satu bahasa.")}</p>
       </section>
+      )}
 
+      {tab === "transkripsi" && (
       <section className="card">
         <h2>{t("Transkripsi (offline, whisper)")}</h2>
         <ul className="models">
@@ -269,7 +202,9 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
           <textarea rows={2} value={draft.vocabulary} onChange={(e) => setDraft({ ...draft, vocabulary: e.target.value })} placeholder={t("contoh: Tokopedia, OKR, Pak Budi, sprint review")} />
         </label>
       </section>
+      )}
 
+      {tab === "preset" && (
       <section className="card">
         <div className="card-head">
           <h2>{t("Preset & system prompt")}</h2>
@@ -330,7 +265,9 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
           )}
         </div>
       </section>
+      )}
 
+      {tab === "privasi" && (
       <section className="card">
         <h2>{t("Privasi")}</h2>
         <label className="check">
@@ -343,13 +280,226 @@ export default function SettingsView({ settings, onSaved }: { settings: Settings
         </label>
         <p className="hint">{t("Semua data tersimpan lokal di komputer ini. Teks transkrip dikirim ke penyedia AI yang kamu pilih saat AI dipakai.")}</p>
       </section>
+      )}
 
+    </div></div>
       <div className="savebar">
         {saved && <span role="status">{t(saved)}</span>}
         <button className="primary" onClick={save}>
           {t("Simpan pengaturan")}
         </button>
       </div>
-    </div>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ AI tab
+
+const KIND_LABEL: Record<Kind, string> = {
+  claude_cli: "Claude (langganan)",
+  codex_cli: "Codex / ChatGPT (langganan)",
+  anthropic: "Anthropic API",
+  open_ai_compatible: "OpenAI-compatible",
+};
+
+type TestState = { busy: boolean; ok?: boolean; text?: string };
+
+function AiTab({
+  prov,
+  setProv,
+  clis,
+  account,
+  apiKey,
+  setApiKey,
+  hasKey,
+}: {
+  prov: ProviderConfig;
+  setProv: (p: ProviderConfig) => void;
+  clis: { claude: string | null; codex: string | null } | null;
+  account: string | null;
+  apiKey: string;
+  setApiKey: (k: string) => void;
+  hasKey: boolean;
+}) {
+  const t = useT();
+  const [models, setModels] = useState<{ id: string; label: string }[]>([]);
+  const [modelsErr, setModelsErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [test, setTest] = useState<TestState>({ busy: false });
+
+  const canList = prov.kind === "claude_cli" || prov.kind === "open_ai_compatible" || (prov.kind === "anthropic" && (hasKey || !!apiKey));
+  const fetchModels = async () => {
+    if (prov.kind === "codex_cli" || !canList) {
+      setModels([]);
+      return;
+    }
+    setLoading(true);
+    setModelsErr(null);
+    try {
+      setModels(await api.listProviderModels(prov, apiKey || null));
+    } catch (e) {
+      setModels([]);
+      setModelsErr(String(e));
+    }
+    setLoading(false);
+  };
+  const listKey = `${prov.kind}|${"base_url" in prov ? prov.base_url : ""}|${hasKey}`;
+  useEffect(() => {
+    setTest({ busy: false });
+    fetchModels();
+  }, [listKey]);
+
+  const runTest = async () => {
+    setTest({ busy: true });
+    try {
+      const r = await api.testProvider(prov, apiKey || null);
+      setTest({ busy: false, ok: true, text: t("Terhubung · {model} · {s} dtk", { model: r.model ?? t("model default"), s: (r.ms / 1000).toFixed(1) }) });
+    } catch (e) {
+      setTest({ busy: false, ok: false, text: String(e) });
+    }
+  };
+
+  const cliPath = prov.kind === "claude_cli" ? clis?.claude : prov.kind === "codex_cli" ? clis?.codex : null;
+  const modelValue = "model" in prov ? (prov.model ?? "") : "";
+  const setModel = (m: string) => setProv({ ...prov, model: prov.kind === "codex_cli" ? m || null : m } as ProviderConfig);
+  const modelPicker =
+    models.length > 0 ? (
+      <select value={modelValue} onChange={(e) => setModel(e.target.value)}>
+        {!models.some((m) => m.id === modelValue) && modelValue && <option value={modelValue}>{modelValue}</option>}
+        {models.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label === m.id || prov.kind === "claude_cli" ? m.label : `${m.label} — ${m.id}`}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <input value={modelValue} onChange={(e) => setModel(e.target.value)} placeholder={prov.kind === "codex_cli" ? t("default") : t("id model")} />
+    );
+
+  return (
+    <>
+      <div className="group">
+        <h4>{t("Penyedia")}</h4>
+        <div className="box">
+          <label className="item">
+            <span className="lbl">{t("Penyedia AI")}</span>
+            <select value={prov.kind} onChange={(e) => setProv(defaultFor(e.target.value as Kind))}>
+              {(Object.keys(KIND_LABEL) as Kind[]).map((k) => (
+                <option key={k} value={k}>
+                  {t(KIND_LABEL[k])}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(prov.kind === "claude_cli" || prov.kind === "codex_cli") && (
+            <div className="item">
+              <span className="lbl">
+                {t("CLI")}
+                <small className="selectable">{cliPath ?? t("Belum terpasang")}</small>
+              </span>
+              <span className={`status ${cliPath ? "ok" : ""}`}>{cliPath ? t("Ditemukan") : t("Tidak ditemukan")}</span>
+            </div>
+          )}
+        </div>
+        <p className="hint">
+          {prov.kind === "claude_cli" && t("Memakai login Claude Code kamu sendiri (Pro/Max). BICARA tidak membaca token kamu. Belum login? Jalankan `claude` sekali di terminal.")}
+          {prov.kind === "codex_cli" && t("Memakai login ChatGPT di Codex CLI (gratis atau berbayar). Jalankan `codex login` sekali. Jawaban datang sekaligus, tidak per kata.")}
+          {prov.kind === "anthropic" && t("Bayar per pemakaian dengan API key dari console.anthropic.com. Key disimpan di keychain.")}
+          {prov.kind === "open_ai_compatible" && t("OpenAI, Groq, OpenRouter, atau model lokal lewat Ollama / LM Studio.")}
+        </p>
+      </div>
+
+      <div className="group">
+        <h4>{t("Koneksi")}</h4>
+        <div className="box">
+          {prov.kind === "open_ai_compatible" && (
+            <>
+              <label className="item">
+                <span className="lbl">{t("Layanan")}</span>
+                <select
+                  value={prov.label in OPENAI_PRESETS ? prov.label : "OpenAI"}
+                  onChange={(e) => setProv({ kind: "open_ai_compatible", label: e.target.value, ...OPENAI_PRESETS[e.target.value] })}
+                >
+                  {Object.keys(OPENAI_PRESETS).map((k) => (
+                    <option key={k}>{k}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="item">
+                <span className="lbl">{t("Base URL")}</span>
+                <input value={prov.base_url} onChange={(e) => setProv({ ...prov, base_url: e.target.value })} />
+              </label>
+            </>
+          )}
+          {account && (
+            <label className="item">
+              <span className="lbl">
+                {t("API key")}
+                <small>{hasKey ? t("Tersimpan di keychain — isi untuk mengganti") : t("Belum ada")}</small>
+              </span>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                onBlur={fetchModels}
+                placeholder={hasKey ? "••••••••" : t("tempel API key")}
+                autoComplete="off"
+              />
+            </label>
+          )}
+          <div className="item">
+            <label className="lbl" htmlFor="ai-model">
+              {t("Model")}
+              <small>
+                {prov.kind === "claude_cli"
+                  ? t("“Terbaru” ikut versi baru otomatis; versi bernomor tetap")
+                  : prov.kind === "codex_cli"
+                    ? t("Kosongkan untuk default Codex")
+                    : loading
+                      ? t("Mengambil daftar model…")
+                      : modelsErr
+                        ? t("Daftar model tidak bisa diambil — ketik manual")
+                        : models.length
+                          ? t("{n} model tersedia", { n: String(models.length) })
+                          : t("Isi API key untuk mengambil daftar model")}
+              </small>
+            </label>
+            <span className="row" style={{ flexWrap: "nowrap", width: "60%", justifyContent: "flex-end" }} id="ai-model">
+              {modelPicker}
+              {prov.kind !== "claude_cli" && prov.kind !== "codex_cli" && (
+                <button className="tb" onClick={fetchModels} disabled={loading || !canList} title={t("Ambil ulang daftar model")} aria-label={t("Ambil ulang daftar model")}>
+                  <IRefresh />
+                </button>
+              )}
+            </span>
+          </div>
+          {prov.kind === "anthropic" && (
+            <label className="item">
+              <span className="lbl">
+                {t("Effort")}
+                <small>{t("Rendah = jawaban lebih cepat")}</small>
+              </span>
+              <select value={prov.effort} onChange={(e) => setProv({ ...prov, effort: e.target.value })}>
+                <option value="low">{t("Low — tercepat")}</option>
+                <option value="medium">{t("Medium")}</option>
+                <option value="high">{t("High")}</option>
+              </select>
+            </label>
+          )}
+          <div className="item">
+            <span className="lbl">
+              {t("Uji koneksi")}
+              <small className={`selectable ${test.ok === false ? "bad" : test.ok ? "good" : ""}`}>
+                {test.busy ? t("Menghubungi…") : (test.text ? t(test.text) : t("Kirim pesan singkat untuk memastikan penyedia bisa dipakai"))}
+              </small>
+            </span>
+            <button className="push" onClick={runTest} disabled={test.busy}>
+              {test.busy ? t("Menguji…") : t("Uji koneksi")}
+            </button>
+          </div>
+        </div>
+        <p className="hint">{t("Pengujian memakai pengaturan di layar ini, belum perlu disimpan.")}</p>
+      </div>
+    </>
   );
 }

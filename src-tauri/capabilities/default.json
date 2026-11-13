@@ -4,10 +4,12 @@
   "description": "Capability for the main window",
   "windows": [
     "main",
-    "overlay"
+    "overlay",
+    "settings"
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-start-dragging",
     "opener:default",
     "dialog:default"
   ]

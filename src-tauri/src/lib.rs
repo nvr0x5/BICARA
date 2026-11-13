@@ -1,6 +1,7 @@
 mod assist;
 mod capture;
 mod meeting;
+mod menu;
 mod models;
 mod settings;
 mod stealth;
@@ -26,6 +27,8 @@ pub struct AppState {
     pub store: Mutex<store::Store>,
     /// Meeting currently being recorded.
     pub current_meeting: Mutex<Option<i64>>,
+    /// Mic muted: "Saya" audio is replaced by silence (not recorded, not transcribed).
+    pub mic_muted: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -43,6 +46,7 @@ pub fn run() {
             app.manage(AppState {
                 store: Mutex::new(store),
                 current_meeting: Mutex::new(None),
+                mic_muted: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 session: Mutex::new(None),
                 stealth: Mutex::new(false),
                 settings: Mutex::new(settings::load(handle)),
@@ -56,15 +60,25 @@ pub fn run() {
             if let Ok(dir) = app.path().app_data_dir() {
                 let _ = std::fs::create_dir_all(dir.join("recordings"));
             }
+            menu::install(handle);
+            #[cfg(debug_assertions)]
+            if std::env::var_os("BICARA_DEVTOOLS").is_some() {
+                if let Some(w) = app.get_webview_window("main") {
+                    w.open_devtools();
+                }
+            }
             models::preload(handle);
             assist::prewarm(handle);
             Ok(())
         })
+        .on_menu_event(|app, event| menu::on_event(app, event.id().as_ref()))
         .invoke_handler(tauri::generate_handler![
             capture::list_audio_apps,
             capture::start_capture,
             capture::stop_capture,
+            capture::set_mic_muted,
             capture::recordings_dir,
+            menu::open_settings_window,
             stealth::set_stealth,
             stealth::get_stealth,
             stealth::toggle_visibility,
@@ -76,6 +90,8 @@ pub fn run() {
             settings::has_api_key,
             settings::detect_clis,
             settings::list_microphones,
+            settings::list_provider_models,
+            settings::test_provider,
             models::list_models,
             models::download_model,
             models::stt_loaded,

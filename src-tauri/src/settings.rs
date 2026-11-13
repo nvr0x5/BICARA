@@ -49,6 +49,8 @@ pub struct Settings {
     pub translate_to: String,
     /// Show in-progress text while someone is still speaking.
     pub live_partials: bool,
+    /// Colour theme: "system", "dark" or "light".
+    pub theme: String,
 }
 
 impl Default for Settings {
@@ -71,6 +73,7 @@ impl Default for Settings {
             ui_language: "id".into(),
             translate_to: String::new(),
             live_partials: true,
+            theme: "system".into(),
         }
     }
 }
@@ -190,6 +193,7 @@ pub fn save_settings(
     *state.settings.lock().unwrap() = settings.clone();
     // Other windows (the overlay) follow language changes.
     let _ = tauri::Emitter::emit(&app, "settings-changed", &settings);
+    crate::menu::install(&app);
     crate::assist::prewarm(&app);
     Ok(settings)
 }
@@ -252,4 +256,31 @@ pub async fn detect_clis() -> bicara_llm::CliStatus {
 #[tauri::command]
 pub fn list_microphones() -> Vec<String> {
     bicara_audio::list_input_devices()
+}
+
+/// API key for a provider: the one typed in the form (not saved yet) or the keychain's.
+fn key_for(cfg: &bicara_llm::ProviderConfig, typed: Option<String>) -> Option<String> {
+    typed.filter(|k| !k.trim().is_empty()).or_else(|| cfg.key_account().and_then(|a| api_key(&a)))
+}
+
+#[tauri::command]
+pub async fn list_provider_models(
+    state: State<'_, AppState>,
+    provider: bicara_llm::ProviderConfig,
+    api_key: Option<String>,
+) -> Result<Vec<bicara_llm::ModelOption>, String> {
+    let llm = state.llm.clone();
+    let key = key_for(&provider, api_key);
+    llm.list_models(&provider, key.as_deref()).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn test_provider(
+    state: State<'_, AppState>,
+    provider: bicara_llm::ProviderConfig,
+    api_key: Option<String>,
+) -> Result<bicara_llm::TestResult, String> {
+    let llm = state.llm.clone();
+    let key = key_for(&provider, api_key);
+    llm.test(&provider, key.as_deref()).await.map_err(|e| e.to_string())
 }

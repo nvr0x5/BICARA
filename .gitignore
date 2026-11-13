@@ -34,3 +34,7 @@ tools/stt-eval/results.csv
 
 # Python
 __pycache__/
+
+# Local tool caches
+.impeccable/
+.playwright-mcp/

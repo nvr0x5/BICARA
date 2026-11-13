@@ -276,3 +276,51 @@ pub async fn codex_complete(
     }
     Ok(text)
 }
+
+/// One-off Claude CLI check: runs a tiny prompt and reports which concrete model the alias
+/// (e.g. `sonnet`) resolved to, read from the CLI's `system/init` event.
+pub async fn claude_probe(binary: Option<&str>, model: &str) -> Result<(String, Option<String>)> {
+    let bin = find_binary("claude", binary)
+        .ok_or_else(|| err("CLI `claude` tidak ditemukan. Install Claude Code lalu jalankan `claude` sekali untuk login."))?;
+    let mut child = spawn_claude(&bin, model, "Reply with exactly: OK")?;
+    let mut stdin = child.stdin.take().ok_or_else(|| err("stdin claude tidak tersedia"))?;
+    stdin.write_all(b"ping").await?;
+    drop(stdin);
+    let stdout = child.stdout.take().ok_or_else(|| err("stdout claude tidak tersedia"))?;
+    let mut lines = BufReader::new(stdout).lines();
+    let (mut resolved, mut text) = (None, String::new());
+    while let Some(line) = lines.next_line().await? {
+        let Ok(v) = serde_json::from_str::<Value>(&line) else { continue };
+        match v["type"].as_str() {
+            Some("system") if v["subtype"] == "init" => resolved = v["model"].as_str().map(str::to_string),
+            Some("assistant") => {
+                if resolved.is_none() {
+                    resolved = v["message"]["model"].as_str().map(str::to_string);
+                }
+            }
+            Some("stream_event") => {
+                let ev = &v["event"];
+                if ev["type"] == "content_block_delta" {
+                    if let Some(t) = ev["delta"]["text"].as_str() {
+                        text.push_str(t);
+                    }
+                } else if ev["type"] == "message_stop" && !text.is_empty() {
+                    let _ = child.start_kill();
+                    return Ok((text, resolved));
+                }
+            }
+            Some("result") => {
+                if v["is_error"].as_bool() == Some(true) || v["subtype"] != "success" {
+                    return Err(err(format!("claude: {}", v["result"].as_str().unwrap_or("gagal"))));
+                }
+                return Ok((v["result"].as_str().unwrap_or(&text).to_string(), resolved));
+            }
+            _ => {}
+        }
+    }
+    let mut s = String::new();
+    if let Some(mut e) = child.stderr.take() {
+        let _ = e.read_to_string(&mut s).await;
+    }
+    Err(err(format!("claude berhenti tanpa jawaban: {}", s.trim())))
+}

@@ -513,6 +513,9 @@ fn export_markdown(d: &MeetingDetail) -> String {
             if u.source == "mic" { "Saya" } else { "Mereka" },
             u.text
         ));
+        if let Some(tr) = u.translation.as_deref().filter(|t| !t.is_empty()) {
+            out.push_str(&format!("> _{tr}_\n\n"));
+        }
     }
     out
 }
@@ -651,6 +654,7 @@ mod tests {
                 text: "Halo semua.".into(),
                 start: 65.0,
                 end: 66.0,
+                translation: Some("Hello everyone.".into()),
             }],
             answers: vec![],
             documents: vec![],
@@ -672,6 +676,7 @@ mod tests {
         let d = detail("# Rapat\n## Ringkasan\n- poin **penting**");
         let md = export_markdown(&d);
         assert!(md.contains("**[01:05] Mereka:** Halo semua."));
+        assert!(md.contains("> _Hello everyone._"));
         let path = std::env::temp_dir().join(format!("bicara-export-{}.docx", std::process::id()));
         let f = std::fs::File::create(&path).unwrap();
         markdown_to_docx(&md).build().pack(f).unwrap();

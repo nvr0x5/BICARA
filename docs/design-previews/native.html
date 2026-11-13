@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BICARA Native Redesign</title>
+<script>
+  document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+</script>
+<style>
+  /* macOS-like system tokens. Accent = the user's system accent (AccentColor) with system-blue fallback. */
+  :root, :root[data-theme="light"] {
+    color-scheme: light;
+    --desk: #c9ccd3;
+    --window: #ffffff;
+    --sidebar: #e9e8ed;
+    --toolbar: #f6f6f6;
+    --inspector: #f7f7f9;
+    --hairline: rgba(0,0,0,.11);
+    --label: rgba(0,0,0,.88);
+    --label2: rgba(0,0,0,.62);
+    --label3: rgba(0,0,0,.55);
+    --fill: rgba(0,0,0,.05);
+    --fill2: rgba(0,0,0,.08);
+    --control: #ffffff;
+    --control-line: rgba(0,0,0,.14);
+    --accent: #007aff;
+    --sel: rgba(0,0,0,.08);
+    --sel-active: #0064e1;
+    --red: #ff3b30;
+    --them: #0060c7;
+    --me: #3d7a14;
+    --group: #ffffff;
+    --hud: rgba(30,30,32,.86);
+    --win-shadow: 0 0 0 .5px rgba(0,0,0,.25), 0 22px 60px rgba(0,0,0,.28);
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --desk: #23252b;
+    --window: #1e1e1e;
+    --sidebar: #2a2a2c;
+    --toolbar: #2c2c2e;
+    --inspector: #242426;
+    --hairline: rgba(255,255,255,.10);
+    --label: rgba(255,255,255,.88);
+    --label2: rgba(255,255,255,.58);
+    --label3: rgba(255,255,255,.5);
+    --fill: rgba(255,255,255,.06);
+    --fill2: rgba(255,255,255,.10);
+    --control: #3a3a3c;
+    --control-line: rgba(255,255,255,.08);
+    --accent: #0a84ff;
+    --sel: rgba(255,255,255,.10);
+    --sel-active: #0a64d6;
+    --red: #ff453a;
+    --them: #64a8ff;
+    --me: #8fd16a;
+    --group: #2a2a2c;
+    --hud: rgba(30,30,32,.88);
+    --win-shadow: 0 0 0 .5px rgba(0,0,0,.6), 0 22px 60px rgba(0,0,0,.55);
+  }
+  @supports (color: AccentColor) {
+    .use-system-accent { --accent: AccentColor; }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--desk); color: var(--label); font: 13px/1.38 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 28px 16px 64px; }
+  .intro h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .intro p { margin: 0 0 6px; color: var(--label2); max-width: 78ch; font-size: 13px; }
+  .switcher { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 16px 0 18px; }
+  .seg { display: inline-flex; background: var(--fill2); border-radius: 7px; padding: 2px; }
+  .seg button { font: inherit; border: 0; background: none; color: var(--label); padding: 3px 12px; border-radius: 5px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--control); box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 0 0 .5px var(--control-line); }
+  .switcher .right { margin-left: auto; }
+  .screen { display: none; }
+  .screen.on { display: block; }
+  .note { color: var(--label2); font-size: 12px; margin: 10px 2px 0; max-width: 90ch; }
+
+  /* ---------- window chrome ---------- */
+  .win { background: var(--window); border-radius: 11px; box-shadow: var(--win-shadow); overflow: hidden; display: grid; grid-template-columns: 220px minmax(0, 1fr); height: 640px; }
+  .win.no-sidebar { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { background: var(--sidebar); border-right: 1px solid var(--hairline); display: flex; flex-direction: column; min-height: 0; }
+  .lights { display: flex; gap: 8px; padding: 18px 16px 0; height: 52px; flex: none; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.2); }
+  .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .src { padding: 0 10px; overflow: auto; flex: 1; }
+  .src h6 { margin: 12px 8px 3px; font-size: 11px; font-weight: 600; color: var(--label3); }
+  .src a { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: 6px; color: var(--label); text-decoration: none; font-size: 13px; white-space: nowrap; overflow: hidden; }
+  .src a svg { flex: none; width: 15px; height: 15px; color: var(--accent); }
+  .src a.on { background: var(--sel); }
+  .src a .count { margin-left: auto; color: var(--label3); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .src a .live-dot { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+  .src a span.t { overflow: hidden; text-overflow: ellipsis; }
+  .side-foot { border-top: 1px solid var(--hairline); padding: 8px 10px; display: flex; align-items: center; gap: 7px; color: var(--label2); font-size: 12px; }
+  .side-foot svg { width: 14px; height: 14px; }
+
+  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .toolbar { height: 52px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--hairline); background: var(--toolbar); }
+  .no-sidebar .toolbar { padding-left: 80px; position: relative; }
+  .no-sidebar .toolbar .lights { position: absolute; left: 0; top: 0; padding-top: 20px; }
+  .toolbar .title { display: grid; line-height: 1.2; min-width: 0; }
+  .toolbar .title b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toolbar .title small { font-size: 11px; color: var(--label2); font-variant-numeric: tabular-nums; }
+  .toolbar .spacer { flex: 1; }
+  .tb { font: inherit; display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--label2); padding: 4px 7px; border-radius: 6px; cursor: default; }
+  .tb:hover { background: var(--fill); color: var(--label); }
+  .tb svg { width: 16px; height: 16px; }
+  .tb.rec { color: var(--red); }
+  .push { font: inherit; border: 0; border-radius: 6px; padding: 3px 10px; background: var(--control); color: var(--label); box-shadow: 0 0 0 .5px var(--control-line), 0 1px 1px rgba(0,0,0,.08); cursor: default; white-space: nowrap; }
+  .push.default { background: var(--accent); color: #fff; box-shadow: none; }
+  .push.big { padding: 5px 14px; }
+  kbd { font: 11px -apple-system, system-ui, sans-serif; color: inherit; opacity: .7; margin-left: 4px; }
+  .meter { width: 54px; height: 4px; border-radius: 2px; background: var(--fill2); position: relative; overflow: hidden; }
+  .meter i { position: absolute; inset: 0; background: var(--label3); transform-origin: left; }
+  .lvl { display: inline-flex; align-items: center; gap: 6px; color: var(--label2); font-size: 11px; }
+
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; }
+  .body.single { grid-template-columns: minmax(0, 1fr); }
+  .doc { overflow: auto; padding: 18px 28px 28px; }
+  .inspector { background: var(--inspector); border-left: 1px solid var(--hairline); overflow: auto; display: flex; flex-direction: column; }
+  .statusbar { height: 26px; flex: none; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 14px; padding: 0 14px; font-size: 11px; color: var(--label2); background: var(--toolbar); }
+  .statusbar .ok::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34c759; margin-right: 5px; vertical-align: 1px; }
+
+  /* transcript as a document */
+  .utt { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 0 12px; padding: 7px 0; }
+  .utt .who { font-size: 12px; font-weight: 600; color: var(--them); padding-top: 1px; }
+  .utt.me .who { color: var(--me); }
+  .utt .who small { display: block; font-weight: 400; color: var(--label3); font-variant-numeric: tabular-nums; }
+  .utt p { margin: 0; font-size: 14px; line-height: 1.5; }
+  .utt p.tr { color: var(--label2); font-size: 13px; margin-top: 2px; }
+  .utt.partial p { color: var(--label3); }
+  .utt.asked p:first-child { background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent); }
+  .day { font-size: 11px; color: var(--label3); text-align: center; margin: 4px 0 10px; }
+
+  /* inspector content */
+  .insp-sec { padding: 12px 14px; border-bottom: 1px solid var(--hairline); }
+  .insp-sec h5 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: var(--label2); display: flex; justify-content: space-between; }
+  .insp-sec h5 span { font-weight: 400; color: var(--label3); }
+  .asked { font-size: 14px; line-height: 1.4; margin: 0; }
+  .answer { font-size: 13px; line-height: 1.5; }
+  .answer p { margin: 0 0 6px; }
+  .answer ul { margin: 0; padding-left: 16px; }
+  .answer li { margin: 2px 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .askfield { display: flex; gap: 6px; margin-top: 8px; }
+  .field { font: inherit; width: 100%; min-width: 0; background: var(--control); color: var(--label); border: 0; border-radius: 6px; padding: 4px 8px; box-shadow: 0 0 0 .5px var(--control-line), inset 0 1px 1px rgba(0,0,0,.06); }
+  .field::placeholder { color: var(--label3); }
+  .older { list-style: none; margin: 0; padding: 0; }
+  .older li { padding: 6px 0; border-top: 1px solid var(--hairline); display: grid; gap: 1px; }
+  .older li:first-child { border-top: 0; }
+  .older small { color: var(--label3); font-size: 11px; }
+
+  /* list/detail (history) */
+  .split3 { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); }
+  .list { border-right: 1px solid var(--hairline); overflow: auto; }
+  .list .search { padding: 8px 10px; border-bottom: 1px solid var(--hairline); }
+  .row { padding: 9px 14px 9px 16px; border-bottom: 1px solid var(--hairline); display: grid; gap: 2px; }
+  .row b { font-weight: 600; font-size: 13px; }
+  .row .meta { display: flex; justify-content: space-between; color: var(--label2); font-size: 12px; }
+  .row .snip { color: var(--label2); font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .row.on { background: var(--sel-active); color: #fff; }
+  .row.on .meta, .row.on .snip { color: rgba(255,255,255,.8); }
+  .notulen h2 { font-size: 20px; font-weight: 700; margin: 0 0 2px; }
+  .notulen .sub { color: var(--label2); margin: 0 0 16px; }
+  .notulen h3 { font-size: 13px; font-weight: 600; margin: 18px 0 6px; }
+  .notulen p, .notulen li { font-size: 14px; line-height: 1.55; }
+  .notulen ul { padding-left: 18px; margin: 0; }
+  table.ai { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.ai th, table.ai td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--hairline); }
+  table.ai th { font-weight: 600; color: var(--label2); font-size: 12px; }
+
+  /* setup = grouped form (System Settings style) */
+  .form { max-width: 620px; margin: 0 auto; display: grid; gap: 18px; }
+  .group h4 { margin: 0 0 6px 10px; font-size: 12px; font-weight: 600; color: var(--label2); }
+  .group .box { background: var(--group); border-radius: 9px; box-shadow: 0 0 0 .5px var(--hairline); }
+  .group .item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 12px; min-height: 38px; border-top: 1px solid var(--hairline); }
+  .group .item:first-child { border-top: 0; }
+  .group .item > span { color: var(--label); }
+  .group .item small { display: block; color: var(--label2); font-size: 11px; }
+  .group .hint { color: var(--label2); font-size: 11px; margin: 6px 10px 0; }
+  .popup { font: inherit; border: 0; border-radius: 6px; padding: 3px 26px 3px 9px; background: var(--control) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath d='M2 5l3-3 3 3M2 9l3 3 3-3' fill='none' stroke='%23888' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 8px center; box-shadow: 0 0 0 .5px var(--control-line), 0 1px 1px rgba(0,0,0,.08); color: var(--label); white-space: nowrap; }
+  .switch { width: 30px; height: 18px; border-radius: 9px; background: var(--fill2); position: relative; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 1px; left: 1px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .switch.on { background: #34c759; }
+  .switch.on::after { left: 13px; }
+  .file { display: flex; align-items: center; gap: 8px; }
+  .file svg { width: 16px; height: 16px; color: var(--label2); flex: none; }
+  .file small { color: var(--label3); }
+  .form .foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* preferences window */
+  .prefs { width: min(680px, 100%); margin: 0 auto; background: var(--window); border-radius: 11px; box-shadow: var(--win-shadow); overflow: hidden; }
+  .prefs .ptool { background: var(--toolbar); border-bottom: 1px solid var(--hairline); padding: 10px 12px 6px; position: relative; text-align: center; }
+  .prefs .ptool .lights { position: absolute; left: 0; top: 0; padding: 12px 14px; height: auto; }
+  .prefs .ptitle { font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+  .ptabs { display: flex; justify-content: center; gap: 2px; flex-wrap: wrap; }
+  .ptabs span { display: grid; justify-items: center; gap: 2px; padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--label2); }
+  .ptabs span svg { width: 22px; height: 22px; }
+  .ptabs span.on { background: var(--sel); color: var(--accent); }
+  .prefs .pbody { padding: 20px 24px 24px; background: var(--inspector); }
+
+  /* HUD overlay */
+  .hudwrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .hud { width: 340px; background: var(--hud); color: rgba(255,255,255,.92); border-radius: 12px; box-shadow: 0 0 0 .5px rgba(255,255,255,.12), 0 18px 50px rgba(0,0,0,.45); backdrop-filter: blur(24px) saturate(1.6); overflow: hidden; font-size: 13px; }
+  .hud .hbar { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 11px; color: rgba(255,255,255,.62); }
+  .hud .hbar .dot { width: 7px; height: 7px; border-radius: 50%; background: #ff453a; }
+  .hud .hbar .x { margin-left: auto; }
+  .hud .hsec { padding: 10px 12px; }
+  .hud .hsec + .hsec { border-top: 1px solid rgba(255,255,255,.08); }
+  .hud .q { color: rgba(255,255,255,.6); font-size: 12px; }
+  .hud .q i { display: block; }
+  .hud ul { margin: 4px 0 0; padding-left: 16px; }
+  .hud .hkeys { display: flex; gap: 12px; font-size: 11px; color: rgba(255,255,255,.62); }
+  .hud .hkeys b { color: rgba(255,255,255,.85); font-weight: 500; }
+  .ideas { columns: 2 320px; column-gap: 28px; margin: 28px 0 0; padding: 0; list-style: none; counter-reset: i; }
+  .ideas li { break-inside: avoid; margin: 0 0 12px; padding-left: 28px; position: relative; counter-increment: i; }
+  .ideas li::before { content: counter(i); position: absolute; left: 0; top: 0; width: 20px; text-align: right; color: var(--label3); font-variant-numeric: tabular-nums; }
+  .ideas b { display: block; font-weight: 600; }
+  .ideas span { color: var(--label2); }
+  h2.sec { font-size: 15px; font-weight: 600; margin: 36px 0 0; }
+  @media (max-width: 860px) {
+    .win { grid-template-columns: 1fr; height: auto; }
+    .sidebar { display: none; }
+    .body, .split3 { grid-template-columns: 1fr; }
+    .inspector { border-left: 0; border-top: 1px solid var(--hairline); }
+    .list { display: none; }
+  }
+  :root[data-theme="dark"] .seg button[aria-pressed="true"] { background: #636366; }
+</style>
+</head>
+<body class="use-system-accent">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-wave" viewBox="0 0 16 16"><path d="M2 7v2M5 4.5v7M8 2v12M11 4.5v7M14 7v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 1.5h5l3 3v10H4z M9 1.5v3h3" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M3 13L13 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="2" fill="currentColor"/></symbol>
+  <symbol id="i-sidebar" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6 2.5v11" stroke="currentColor" stroke-width="1.2"/></symbol>
+  <symbol id="i-inspector" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M10 2.5v11" stroke="currentColor" stroke-width="1.2"/></symbol>
+  <symbol id="i-share" viewBox="0 0 16 16"><path d="M8 10V2M5 4.5L8 1.5l3 3M4 7H3v7.5h10V7h-1" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M3.5 7.5a4.5 4.5 0 009 0M8 12v2.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 16 16"><path d="M8 2v3M8 11v3M2 8h3M11 8h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+</svg>
+
+<div class="page">
+  <section class="intro">
+    <h1>BICARA: native desktop redesign</h1>
+    <p>Same features, but laid out like a normal Mac/Windows app: a sidebar for navigation, a toolbar inside the title bar, full-width content with thin divider lines instead of floating cards, the system font at 13 px, and the <b>system accent colour</b> (whatever the user set in macOS; blue by default) instead of indigo.</p>
+  </section>
+
+  <div class="switcher">
+    <div class="seg" role="group" aria-label="Layar">
+      <button data-s="live" aria-pressed="true">Meeting berlangsung</button>
+      <button data-s="setup" aria-pressed="false">Meeting baru</button>
+      <button data-s="history" aria-pressed="false">Riwayat</button>
+      <button data-s="prefs" aria-pressed="false">Pengaturan</button>
+      <button data-s="hud" aria-pressed="false">Overlay</button>
+    </div>
+    <div class="seg right" role="group" aria-label="Tema">
+      <button data-t="light">Terang</button>
+      <button data-t="dark">Gelap</button>
+    </div>
+  </div>
+
+  <!-- shared sidebar markup is repeated per screen to keep the preview static -->
+
+  <!-- ===================== LIVE ===================== -->
+  <section class="screen on" id="live">
+    <div class="win">
+      <aside class="sidebar">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <nav class="src">
+          <a href="#"><svg><use href="#i-plus"/></svg><span class="t">Meeting baru</span></a>
+          <h6>Sekarang</h6>
+          <a href="#" class="on"><svg><use href="#i-wave"/></svg><span class="t">Scoping Red Team · ABC</span><i class="live-dot"></i></a>
+          <h6>Hari ini</h6>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Interview Backend Engineer</span></a>
+          <h6>Minggu ini</h6>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Rapat OKR Q4</span></a>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Demo produk ke klien</span></a>
+          <a href="#"><svg><use href="#i-clock"/></svg><span class="t">Semua riwayat</span><span class="count">24</span></a>
+        </nav>
+        <div class="side-foot"><svg><use href="#i-eye"/></svg>Siluman aktif</div>
+      </aside>
+      <div class="main">
+        <div class="toolbar">
+          <div class="title"><b>Scoping Red Team · ABC</b><small>Zoom · 12:41</small></div>
+          <div class="spacer"></div>
+          <span class="lvl">Mereka <span class="meter"><i style="transform:scaleX(.55)"></i></span></span>
+          <span class="lvl">Saya <span class="meter"><i style="transform:scaleX(.12)"></i></span></span>
+          <button class="tb rec" title="Akhiri meeting"><svg><use href="#i-stop"/></svg>Akhiri</button>
+          <button class="tb" title="Inspector"><svg><use href="#i-inspector"/></svg></button>
+        </div>
+        <div class="body">
+          <article class="doc" aria-label="Transkrip">
+            <p class="day">Transkrip · terjemahan ke English aktif</p>
+            <div class="utt"><div class="who">Mereka<small>11:58</small></div><div><p>Untuk upgrade PHP ini, apakah gateway juga perlu kita masukkan ke scope pengujian?</p><p class="tr">For this PHP upgrade, should the gateway also be included in the test scope?</p></div></div>
+            <div class="utt me"><div class="who">Saya<small>12:10</small></div><div><p>Kalau gateway tidak terdampak dan tidak berubah, menurut kami cukup fokus di backend.</p><p class="tr">If the gateway is unaffected and unchanged, we think focusing on the backend is enough.</p></div></div>
+            <div class="utt asked"><div class="who">Mereka<small>12:31</small></div><div><p>Oke, tapi bagaimana kalau ada konfigurasi forwarder yang ikut diubah?</p><p class="tr">Okay, but what if some forwarder configuration is changed as well?</p></div></div>
+            <div class="utt partial"><div class="who">Mereka<small>12:39</small></div><div><p>Terus untuk timeline-nya kira-kira…</p></div></div>
+          </article>
+          <aside class="inspector" aria-label="Asisten">
+            <div class="insp-sec"><h5>Pertanyaan <span>12:31</span></h5><p class="asked">Bagaimana kalau ada konfigurasi forwarder yang ikut diubah?</p></div>
+            <div class="insp-sec"><h5>Saran jawaban <span>Claude · 2,1 dtk</span></h5>
+              <div class="answer"><p><b>Forwarder masuk scope hanya jika konfigurasinya berubah.</b></p>
+                <ul><li>Minta daftar perubahan konfigurasi dari tim infra.</li><li>Kalau routing/header berubah, uji jalur Forwarder → Backend.</li><li>Gateway tetap di luar scope selama tidak tersentuh.</li></ul></div>
+            </div>
+            <div class="insp-sec">
+              <div class="actions"><button class="push default">Bantu jawab<kbd>⌘⇧J</kbd></button><button class="push">Lanjutan</button><button class="push">Ringkas</button></div>
+              <div class="askfield"><input class="field" placeholder="Tanya soal percakapan ini…" aria-label="Tanya AI"></div>
+            </div>
+            <div class="insp-sec"><h5>Sebelumnya</h5>
+              <ul class="older"><li>Gateway di luar scope jika tidak berubah<small>Saran jawaban · 12:11</small></li><li>Ringkasan 10 menit pertama<small>Ringkas · 12:05</small></li></ul>
+            </div>
+          </aside>
+        </div>
+        <div class="statusbar"><span class="ok">Transkripsi lokal (whisper)</span><span>Formal</span><span>Bantu otomatis: aktif</span><span style="margin-left:auto">3 dokumen konteks</span></div>
+      </div>
+    </div>
+    <p class="note">Transcript is the main document (like Notes/Granola), the AI sits in a right-hand <b>inspector</b> you can hide (like Keynote/Xcode). The line the AI is answering gets a light highlight. Recording controls live in the toolbar; status in a thin status bar.</p>
+  </section>
+
+  <!-- ===================== SETUP ===================== -->
+  <section class="screen" id="setup">
+    <div class="win">
+      <aside class="sidebar">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <nav class="src">
+          <a href="#" class="on"><svg><use href="#i-plus"/></svg><span class="t">Meeting baru</span></a>
+          <h6>Hari ini</h6>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Interview Backend Engineer</span></a>
+          <h6>Minggu ini</h6>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Rapat OKR Q4</span></a>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Demo produk ke klien</span></a>
+          <a href="#"><svg><use href="#i-clock"/></svg><span class="t">Semua riwayat</span><span class="count">24</span></a>
+        </nav>
+        <div class="side-foot"><svg><use href="#i-eye"/></svg>Siluman mati</div>
+      </aside>
+      <div class="main">
+        <div class="toolbar"><div class="title"><b>Meeting baru</b></div><div class="spacer"></div></div>
+        <div class="doc">
+          <div class="form">
+            <div class="group"><h4>Meeting</h4><div class="box">
+              <div class="item"><span>Judul</span><input class="field" style="max-width:300px" value="Scoping Red Team · ABC"></div>
+              <div class="item"><span>Jenis</span><span class="popup">Rapat dengan klien</span></div>
+              <div class="item"><span>Bahasa percakapan</span><span class="popup">Bahasa Indonesia</span></div>
+              <div class="item"><span>Terjemahan langsung</span><span class="popup">Ke English</span></div>
+            </div></div>
+            <div class="group"><h4>Audio</h4><div class="box">
+              <div class="item"><span>Aplikasi meeting<small>Suara “Mereka”</small></span><span class="popup">Zoom</span></div>
+              <div class="item"><span>Mikrofon<small>Suara “Saya”</small></span><span class="popup">MacBook Pro Microphone</span></div>
+            </div><p class="hint">Untuk Google Meet, pilih browser-nya.</p></div>
+            <div class="group"><h4>Dokumen konteks</h4><div class="box">
+              <div class="item file"><svg><use href="#i-doc"/></svg><span style="flex:1">Proposal-Pentest-ABC.pdf <small>12 halaman</small></span><button class="push">Hapus</button></div>
+              <div class="item file"><svg><use href="#i-doc"/></svg><span style="flex:1">Arsitektur-Forwarder-Gateway.docx <small>4 halaman</small></span><button class="push">Hapus</button></div>
+              <div class="item"><button class="push">Tambah file…</button><span style="color:var(--label3);font-size:11px">PDF, Word, PowerPoint, teks</span></div>
+            </div></div>
+            <div class="group"><div class="box">
+              <div class="item"><span>Peserta sudah diberi tahu bahwa meeting direkam<small>UU PDP</small></span><span class="switch on"></span></div>
+            </div></div>
+            <div class="foot"><button class="push big default">Mulai meeting</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Setup looks like System Settings: grouped rows, label on the left, control on the right. No cards, no big headings.</p>
+  </section>
+
+  <!-- ===================== HISTORY ===================== -->
+  <section class="screen" id="history">
+    <div class="win">
+      <aside class="sidebar">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <nav class="src">
+          <a href="#"><svg><use href="#i-plus"/></svg><span class="t">Meeting baru</span></a>
+          <h6>Riwayat</h6>
+          <a href="#" class="on"><svg><use href="#i-clock"/></svg><span class="t">Semua meeting</span><span class="count">24</span></a>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Rapat</span><span class="count">11</span></a>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Interview</span><span class="count">8</span></a>
+          <a href="#"><svg><use href="#i-doc"/></svg><span class="t">Klien</span><span class="count">5</span></a>
+        </nav>
+        <div class="side-foot"><svg><use href="#i-eye"/></svg>Siluman mati</div>
+      </aside>
+      <div class="main">
+        <div class="toolbar"><div class="title"><b>Scoping Red Team · ABC</b><small>Kamis, 12 Nov · 48 menit</small></div><div class="spacer"></div>
+          <div class="seg" role="group"><button aria-pressed="true">Notulen</button><button aria-pressed="false">Transkrip</button><button aria-pressed="false">AI</button></div>
+          <button class="tb" title="Bagikan"><svg><use href="#i-share"/></svg></button></div>
+        <div class="split3">
+          <div class="list">
+            <div class="search"><input class="field" placeholder="Cari di semua meeting" aria-label="Cari"></div>
+            <div class="row on"><div class="meta"><b style="color:inherit">Scoping Red Team · ABC</b><span>12.40</span></div><div class="snip">Gateway di luar scope selama tidak berubah; forwarder diuji jika konfigurasinya berubah.</div></div>
+            <div class="row"><div class="meta"><b style="color:var(--label)">Interview Backend Engineer</b><span>10.00</span></div><div class="snip">Kandidat kuat di Go dan PostgreSQL, perlu digali soal desain sistem.</div></div>
+            <div class="row"><div class="meta"><b style="color:var(--label)">Rapat OKR Q4</b><span>Selasa</span></div><div class="snip">Target churn turun 2%, peluncuran fitur ekspor dipindah ke Desember.</div></div>
+            <div class="row"><div class="meta"><b style="color:var(--label)">Demo produk ke klien</b><span>Senin</span></div><div class="snip">Klien minta integrasi SSO dan harga untuk 50 pengguna.</div></div>
+          </div>
+          <article class="doc notulen">
+            <h2>Scoping Red Team · ABC</h2>
+            <p class="sub">Notulen · Rapat dengan klien · 3 peserta</p>
+            <h3>Ringkasan</h3>
+            <p>Klien ABC melakukan upgrade PHP di backend. Disepakati pengujian fokus pada backend; gateway tidak diuji terpisah selama tidak terdampak dan tidak berubah.</p>
+            <h3>Keputusan</h3>
+            <ul><li>Scope: Backend (PHP 8.3) dan jalur Forwarder → Backend.</li><li>Gateway di luar scope, dengan catatan risiko.</li></ul>
+            <h3>Tindak lanjut</h3>
+            <table class="ai"><thead><tr><th>Tugas</th><th>PIC</th><th>Tenggat</th></tr></thead><tbody>
+              <tr><td>Kirim daftar perubahan konfigurasi forwarder</td><td>Tim infra ABC</td><td>15 Nov</td></tr>
+              <tr><td>Revisi dokumen scope</td><td>Saya</td><td>16 Nov</td></tr></tbody></table>
+          </article>
+        </div>
+      </div>
+    </div>
+    <p class="note">History is a Mail-style list/detail: meeting list in the middle, notes on the right, Notulen/Transkrip/AI as a segmented control in the toolbar, Share (Word, Markdown, WhatsApp) behind the standard share icon.</p>
+  </section>
+
+  <!-- ===================== PREFS ===================== -->
+  <section class="screen" id="prefs">
+    <div class="prefs">
+      <div class="ptool">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="ptitle">Pengaturan</div>
+        <div class="ptabs">
+          <span><svg><use href="#i-gear"/></svg>Umum</span>
+          <span class="on"><svg><use href="#i-sparkle"/></svg>AI</span>
+          <span><svg><use href="#i-mic"/></svg>Transkripsi</span>
+          <span><svg><use href="#i-globe"/></svg>Bahasa</span>
+          <span><svg><use href="#i-eye"/></svg>Siluman</span>
+          <span><svg><use href="#i-lock"/></svg>Privasi</span>
+        </div>
+      </div>
+      <div class="pbody">
+        <div class="form" style="max-width:none">
+          <div class="group"><h4>Penyedia AI</h4><div class="box">
+            <div class="item"><span>Penyedia</span><span class="popup">Langganan Claude (CLI)</span></div>
+            <div class="item"><span>Model</span><span class="popup">Sonnet</span></div>
+            <div class="item"><span>Status<small>claude ditemukan di /opt/homebrew/bin</small></span><span style="color:#34c759">Siap</span></div>
+          </div></div>
+          <div class="group"><h4>Perilaku</h4><div class="box">
+            <div class="item"><span>Bantu otomatis saat ada pertanyaan</span><span class="switch on"></span></div>
+            <div class="item"><span>Gaya bahasa</span><span class="seg"><button aria-pressed="true">Formal</button><button aria-pressed="false">Santai</button></span></div>
+            <div class="item"><span>Preset bawaan</span><span class="popup">Rapat</span></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Settings move to their own Preferences window (⌘,) with an icon toolbar, the standard Mac pattern. Stealth becomes a Settings tab plus a menu-bar item, not a main tab.</p>
+  </section>
+
+  <!-- ===================== HUD ===================== -->
+  <section class="screen" id="hud">
+    <div class="hudwrap">
+      <div class="hud" role="complementary" aria-label="Overlay">
+        <div class="hbar"><span class="dot"></span>BICARA · 12:41<span class="x">⌘⇧H sembunyikan</span></div>
+        <div class="hsec q">Terus untuk timeline-nya kira-kira…<i>And for the timeline, roughly…</i></div>
+        <div class="hsec"><b>Forwarder masuk scope hanya jika konfigurasinya berubah.</b><ul><li>Minta daftar perubahan dari tim infra.</li><li>Gateway tetap di luar scope.</li></ul></div>
+        <div class="hsec hkeys"><span><b>⌘⇧J</b> bantu jawab</span><span><b>⌘⇧H</b> sembunyikan</span></div>
+      </div>
+      <p class="note" style="max-width:46ch;margin:0">The overlay becomes a macOS <b>HUD panel</b>: small, dark and translucent in both themes, no buttons, just the live line, the answer and the shortcuts. It never steals focus from Zoom.</p>
+    </div>
+  </section>
+
+  <h2 class="sec">Ideas</h2>
+  <ol class="ideas">
+    <li><b>Sidebar instead of top tabs</b><span>Source list on the left (Meeting baru, ongoing meeting, recent meetings grouped by Hari ini / Minggu ini), like Notes, Mail and Finder.</span></li>
+    <li><b>Toolbar inside the title bar</b><span>Hide the default title bar; traffic lights, meeting title, timer, levels and Akhiri share one 52 px toolbar (Tauri <code>titleBarStyle: "Overlay"</code>).</span></li>
+    <li><b>Translucent sidebar</b><span>Native macOS vibrancy behind the sidebar (window-vibrancy crate); Mica on Windows 11.</span></li>
+    <li><b>System accent colour</b><span>Use the colour the user picked in macOS (CSS <code>AccentColor</code>) instead of a hard-coded indigo; red only for recording.</span></li>
+    <li><b>No floating cards</b><span>Content goes edge to edge, separated by 1 px hairlines. Cards only where macOS uses them (grouped settings).</span></li>
+    <li><b>System font, system sizes</b><span>SF Pro / Segoe UI at 13 px, 11 px for secondary text; no spaced-out capitals, no oversized headings.</span></li>
+    <li><b>Transcript as the document, AI as inspector</b><span>Main area reads like a notes document; AI help sits in a hideable right panel (⌘⌥I).</span></li>
+    <li><b>Status bar</b><span>Thin bottom bar for transcription engine, register, auto-assist and context files instead of chips and badges.</span></li>
+    <li><b>Grouped forms like System Settings</b><span>Meeting setup and preferences as label-left / control-right rows with pop-up buttons and switches.</span></li>
+    <li><b>Separate Preferences window</b><span>⌘, opens a classic preferences window with an icon toolbar (Umum, AI, Transkripsi, Bahasa, Siluman, Privasi).</span></li>
+    <li><b>Mail-style history</b><span>List in the middle, notes on the right, search field on top of the list, Share menu for Word / Markdown / WhatsApp.</span></li>
+    <li><b>Real menu bar</b><span>File › Meeting baru ⌘N, Meeting › Bantu jawab ⌘⇧J, View › Tampilkan inspector ⌘⌥I, plus right-click menus on meetings.</span></li>
+    <li><b>Menu-bar extra</b><span>A small icon in the macOS menu bar (Windows tray) with Start / Stop, Stealth on/off and the hotkeys.</span></li>
+    <li><b>HUD overlay</b><span>Overlay as a dark translucent HUD panel with no buttons, only text and shortcuts.</span></li>
+    <li><b>Native controls</b><span>Small 6 px radius, pop-up buttons, segmented controls and switches that match the OS; default button = accent.</span></li>
+    <li><b>Quiet empty states</b><span>Plain grey sentences ("Belum ada meeting"), no illustrations or emoji.</span></li>
+    <li><b>Remember window state</b><span>Restore window size, sidebar width and inspector visibility on next launch (tauri-plugin-window-state).</span></li>
+    <li><b>Windows look</b><span>Same layout with Segoe UI Variable, Mica and Windows accent colour, caption buttons on the right.</span></li>
+  </ol>
+</div>
+<script>
+  const root = document.documentElement;
+  const sBtns = document.querySelectorAll("[data-s]");
+  sBtns.forEach((b) => b.addEventListener("click", () => {
+    sBtns.forEach((x) => x.setAttribute("aria-pressed", x === b));
+    document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.id === b.dataset.s));
+  }));
+  const tBtns = document.querySelectorAll("[data-t]");
+  const setT = (t) => { root.dataset.theme = t; tBtns.forEach((x) => x.setAttribute("aria-pressed", x.dataset.t === t)); };
+  tBtns.forEach((b) => b.addEventListener("click", () => setT(b.dataset.t)));
+  setT(root.dataset.theme);
+</script>
+</body>
+</html>

@@ -2,7 +2,9 @@
 name = "bicara"
 version = "0.1.0"
 description = "BICARA - Indonesian live AI meeting assistant"
-authors = []
+authors = ["nvr0x5"]
+license = "MIT"
+repository = "https://github.com/nvr0x5/BICARA"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

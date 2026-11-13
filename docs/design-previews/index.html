@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="id" data-palette="graphite">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BICARA Palettes</title>
+<script>
+  // Follow the system theme until the viewer picks one.
+  document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+</script>
+<style>
+  /* ---------- Palettes (neutral base + one accent; contrast checked to WCAG AA) ---------- */
+  /* 1 · Graphite + Indigo — Linear-style: near-neutral greys, single indigo accent */
+  [data-palette="graphite"][data-theme="dark"] {
+    --page:#08090A; --bg:#0F1012; --panel:#17181B; --panel2:#1F2024; --line:rgba(255,255,255,.08);
+    --text:#EDEEF0; --mute:#9A9CA5; --accent:#7C85F0; --pri:#5E6AD2; --pri-ink:#FFFFFF; --pri-hover:#6C78E0;
+    --them:#8FB8FF; --me:#C4A7FF; --live:#F87171; }
+  [data-palette="graphite"][data-theme="light"] {
+    --page:#ECECEF; --bg:#F7F7F8; --panel:#FFFFFF; --panel2:#F1F1F3; --line:rgba(0,0,0,.09);
+    --text:#18191B; --mute:#5E6068; --accent:#4F5BD5; --pri:#4F5BD5; --pri-ink:#FFFFFF; --pri-hover:#4350C4;
+    --them:#1D5FD1; --me:#7A3FD6; --live:#DC2626; }
+
+  /* 2 · macOS Netral + Biru — follows Apple's system greys and system blue */
+  [data-palette="mac"][data-theme="dark"] {
+    --page:#161616; --bg:#1E1E1E; --panel:#262626; --panel2:#2E2E2E; --line:rgba(255,255,255,.10);
+    --text:#F2F2F2; --mute:#A1A1A6; --accent:#409CFF; --pri:#0A6CDB; --pri-ink:#FFFFFF; --pri-hover:#1A7CF0;
+    --them:#64B5FF; --me:#FFB340; --live:#FF453A; }
+  [data-palette="mac"][data-theme="light"] {
+    --page:#E8E8EA; --bg:#F5F5F7; --panel:#FFFFFF; --panel2:#EEEEF0; --line:rgba(0,0,0,.10);
+    --text:#1D1D1F; --mute:#6E6E73; --accent:#0066CC; --pri:#0066CC; --pri-ink:#FFFFFF; --pri-hover:#0058B0;
+    --them:#0066CC; --me:#A34A00; --live:#D70015; }
+
+  /* 3 · Navy BICARA — the logo's deep navy with its blue→violet as the accent (Raycast-like) */
+  [data-palette="navy"][data-theme="dark"] {
+    --page:#05070F; --bg:#0A0D18; --panel:#111527; --panel2:#181D33; --line:rgba(160,175,255,.10);
+    --text:#E8EAF4; --mute:#959BB5; --accent:#7B8CFF; --pri:#4A55E8; --pri-ink:#FFFFFF; --pri-hover:#5A65F5;
+    --them:#5CC8FF; --me:#B39CFF; --live:#FB7185; }
+  [data-palette="navy"][data-theme="light"] {
+    --page:#E9ECF5; --bg:#F6F7FB; --panel:#FFFFFF; --panel2:#EFF1F8; --line:rgba(20,30,80,.10);
+    --text:#141726; --mute:#5A6078; --accent:#4353E0; --pri:#4353E0; --pri-ink:#FFFFFF; --pri-hover:#3442CC;
+    --them:#0B6FB0; --me:#6B3FD4; --live:#E11D48; }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  html[data-theme="light"] { color-scheme: light; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
+  .page { max-width: 1180px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.01em; }
+  .intro p { color: var(--mute); margin: 0 0 6px; max-width: 74ch; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 20px 0 8px; }
+  .controls button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  .controls button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .controls .sw { display: inline-flex; }
+  .controls .sw i { width: 12px; height: 12px; border-radius: 50%; margin-left: -4px; border: 1px solid rgba(127,127,127,.4); }
+  .controls .theme { margin-left: auto; }
+  .note { color: var(--mute); font-size: 13px; margin: 0 0 22px; min-height: 2.6em; max-width: 90ch; }
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .stage { grid-template-columns: 1fr; } }
+  .cap { color: var(--mute); font-size: 12px; margin: 8px 2px 0; }
+  .logo { width: 22px; height: 22px; border-radius: 6px; display: block; }
+
+  /* ---------- Fokus layout ---------- */
+  .win { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.28); }
+  .bar { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .bar b { font-size: 13px; letter-spacing: .14em; }
+  .nav { display: flex; gap: 2px; margin-left: 10px; }
+  .nav span { padding: 4px 10px; border-radius: 6px; font-size: 13px; color: var(--mute); }
+  .nav span.on { background: var(--panel2); color: var(--text); }
+  .rec { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--mute); font-variant-numeric: tabular-nums; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 25%, transparent); }
+  .btn { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; background: var(--panel2); color: var(--text); transition: background-color .15s, border-color .15s; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.pri { background: var(--pri); border-color: var(--pri); color: var(--pri-ink); font-weight: 600; }
+  .btn.pri:hover { background: var(--pri-hover); border-color: var(--pri-hover); }
+  kbd { font: 11px ui-monospace, monospace; background: rgba(0,0,0,.2); border-radius: 4px; padding: 1px 4px; margin-left: 6px; }
+  .main { padding: 18px; display: grid; gap: 14px; min-height: 520px; align-content: start; }
+  .q small { display: block; font-size: 12px; color: var(--them); font-weight: 600; margin-bottom: 4px; }
+  .q { font-size: 19px; line-height: 1.35; letter-spacing: -.01em; }
+  .ans { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .ans header { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--mute); margin-bottom: 6px; }
+  .ans header b { color: var(--accent); }
+  .ans ul { margin: 6px 0 0; padding-left: 18px; }
+  .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ask { display: flex; gap: 6px; }
+  .ask input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  .ask input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  details { border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { color: var(--mute); cursor: pointer; font-size: 13px; }
+  .ln { margin: 10px 0 0; font-size: 13px; }
+  .ln .who { font-weight: 600; margin-right: 6px; }
+  .them .who { color: var(--them); } .me .who { color: var(--me); }
+  .ln .tr { display: block; color: var(--mute); font-style: italic; }
+  .ln.partial { color: var(--mute); }
+  .ov { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.3); }
+  .ov .live { font-size: 13px; color: var(--mute); border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 10px; }
+  .ov .live i { display: block; }
+  .ov .ans { background: var(--panel2); }
+  .ov .acts { margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="intro">
+    <h1>BICARA · Fokus: palette options</h1>
+    <p>Desktop apps (macOS, Linear, Raycast, Material) all follow the same pattern: a <b>neutral grey base</b> that gets slightly lighter with each layer, near-white text (not pure white) and <b>one accent colour</b> for the main action. Each palette below has a dark and a light version.</p>
+  </section>
+
+  <div class="controls" role="group" aria-label="Palet">
+    <button data-p="graphite" aria-pressed="true"><span class="sw"><i style="background:#17181B"></i><i style="background:#5E6AD2"></i></span>1 · Graphite + Indigo</button>
+    <button data-p="mac" aria-pressed="false"><span class="sw"><i style="background:#262626"></i><i style="background:#0A6CDB"></i></span>2 · macOS Netral + Biru</button>
+    <button data-p="navy" aria-pressed="false"><span class="sw"><i style="background:#111527"></i><i style="background:#4A55E8"></i></span>3 · Navy BICARA</button>
+    <button class="theme" id="theme" aria-label="Ganti terang/gelap">☀︎ / ☾ Terang · Gelap</button>
+  </div>
+  <p class="note" id="note"></p>
+
+  <div class="stage">
+    <div>
+      <div class="win">
+        <div class="bar">
+          <img class="logo" src="../brand/bicara-icon.png" alt=""><b>BICARA</b>
+          <div class="nav"><span class="on">Meeting</span><span>Riwayat</span><span>Pengaturan</span></div>
+          <div class="rec"><span class="dot"></span>Zoom · 12:41 <button class="btn">Akhiri</button></div>
+        </div>
+        <div class="main">
+          <div class="q"><small>Mereka bertanya · 12:31</small>Bagaimana kalau ada konfigurasi forwarder yang ikut diubah?</div>
+          <article class="ans"><header><b>Bantu jawab</b><span>Claude (langganan) · 2.1 dtk</span></header>
+            Jawaban singkat: <b>forwarder masuk scope hanya jika konfigurasinya berubah.</b>
+            <ul><li>Minta daftar perubahan konfigurasi forwarder dari tim infra.</li><li>Jika ada perubahan routing/header, uji jalur Forwarder → Backend.</li><li>Gateway tetap di luar scope selama tidak tersentuh.</li></ul>
+          </article>
+          <div class="acts"><button class="btn pri">Bantu jawab<kbd>⌘⇧J</kbd></button><button class="btn">Pertanyaan lanjutan</button><button class="btn">Ringkas</button></div>
+          <form class="ask" onsubmit="return false"><input placeholder="Tanya AI soal percakapan ini…" aria-label="Pertanyaan untuk AI"><button class="btn">Tanya</button></form>
+          <details open><summary>Transkrip · 4 baris</summary>
+            <p class="ln them"><span class="who">Mereka</span>Untuk upgrade PHP ini, apakah gateway juga perlu kita masukkan ke scope pengujian?<span class="tr">For this PHP upgrade, should the gateway also be included in the test scope?</span></p>
+            <p class="ln me"><span class="who">Saya</span>Kalau gateway tidak terdampak dan tidak berubah, menurut kami cukup fokus di backend.<span class="tr">If the gateway is unaffected and unchanged, we think focusing on the backend is enough.</span></p>
+            <p class="ln them"><span class="who">Mereka</span>Oke, tapi bagaimana kalau ada konfigurasi forwarder yang ikut diubah?<span class="tr">Okay, but what if some forwarder configuration is changed as well?</span></p>
+            <p class="ln them partial"><span class="who">Mereka</span>Terus untuk timeline-nya kira-kira…</p>
+          </details>
+        </div>
+      </div>
+      <p class="cap">Main window, live meeting</p>
+    </div>
+    <div>
+      <div class="ov">
+        <div class="live">Terus untuk timeline-nya kira-kira…<i>And for the timeline, roughly…</i></div>
+        <article class="ans"><header><b>Bantu jawab</b><span>2.1 dtk</span></header>Forwarder masuk scope <b>hanya jika konfigurasinya berubah</b>. Minta daftar perubahan dari tim infra.</article>
+        <div class="acts"><button class="btn pri">Bantu jawab</button><button class="btn">Ringkas</button></div>
+      </div>
+      <p class="cap">Overlay (always on top, hidden from share)</p>
+    </div>
+  </div>
+</div>
+<script>
+  const root = document.documentElement;
+  const notes = {
+    graphite: "Like Linear: almost colourless greys, with indigo only on the main button, AI title and focus. Calm, professional and doesn't distract during a meeting.",
+    mac: "Follows macOS: standard system greys and system blue, so it feels like part of the OS. The safest and most familiar choice.",
+    navy: "Takes the deep navy and blue→violet from the BICARA logo, so app and logo match. The most 'branded' feel; the base is slightly blue rather than neutral.",
+  };
+  const btns = document.querySelectorAll(".controls button[data-p]");
+  const setP = (p) => {
+    root.dataset.palette = p;
+    btns.forEach((b) => b.setAttribute("aria-pressed", b.dataset.p === p));
+    document.getElementById("note").textContent = notes[p];
+  };
+  btns.forEach((b) => b.addEventListener("click", () => setP(b.dataset.p)));
+  document.getElementById("theme").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+  });
+  setP("graphite");
+</script>
+</body>
+</html>

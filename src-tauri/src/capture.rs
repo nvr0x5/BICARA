@@ -2,6 +2,8 @@
 //! Each stream is written to a mono f32 WAV and its level is emitted to the UI (~15 Hz).
 
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, sync_channel};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -42,6 +44,7 @@ fn stream_pipeline(
     source: &'static str,
     path: PathBuf,
     feeder: Option<bicara_stt::StreamFeeder>,
+    mute: Option<Arc<AtomicBool>>,
 ) -> (Sink, JoinHandle<Option<PathBuf>>) {
     let (tx, rx) = sync_channel::<Chunk>(256);
     let sink: Sink = Box::new(move |samples, rate| {
@@ -49,7 +52,7 @@ fn stream_pipeline(
     });
     let handle = std::thread::Builder::new()
         .name(format!("bicara-writer-{source}"))
-        .spawn(move || writer_loop(app, source, path, rx, feeder))
+        .spawn(move || writer_loop(app, source, path, rx, feeder, mute))
         .expect("spawn writer");
     (sink, handle)
 }
@@ -60,11 +63,16 @@ fn writer_loop(
     path: PathBuf,
     rx: Receiver<Chunk>,
     mut feeder: Option<bicara_stt::StreamFeeder>,
+    mute: Option<Arc<AtomicBool>>,
 ) -> Option<PathBuf> {
     let mut writer: Option<hound::WavWriter<std::io::BufWriter<std::fs::File>>> = None;
     let (mut sq, mut n, mut peak) = (0f64, 0usize, 0f32);
     let mut last = Instant::now();
-    while let Ok((buf, rate)) = rx.recv() {
+    while let Ok((mut buf, rate)) = rx.recv() {
+        if mute.as_ref().is_some_and(|m| m.load(Ordering::Relaxed)) {
+            // Keep the timeline (silence) so transcript times stay aligned.
+            buf.iter_mut().for_each(|s| *s = 0.0);
+        }
         if writer.is_none() {
             let spec = hound::WavSpec {
                 channels: 1,
@@ -165,6 +173,7 @@ pub fn start_capture(
         Err(e) => (None, Some(e)),
     };
     let transcribing = stt.is_some();
+    state.mic_muted.store(false, Ordering::Relaxed);
     let partials = state.settings.lock().unwrap().live_partials;
 
     let mut session = Session {
@@ -180,6 +189,7 @@ pub fn start_capture(
             "app",
             dir.join("mereka-app.wav"),
             stt.as_ref().map(|t| t.feeder("app").with_partials(partials)),
+            None,
         );
         session.writers.push(w);
         session.app = Some(AppCapture::start(&id, sink).map_err(|e| e.to_string())?);
@@ -190,6 +200,7 @@ pub fn start_capture(
             "mic",
             dir.join("saya-mic.wav"),
             stt.as_ref().map(|t| t.feeder("mic").with_partials(partials)),
+            Some(state.mic_muted.clone()),
         );
         session.writers.push(w);
         let device = state.settings.lock().unwrap().mic_device.clone();
@@ -224,4 +235,11 @@ fn stop_session(mut s: Session) -> Vec<String> {
 pub fn stop_capture(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     let session = state.session.lock().unwrap().take();
     Ok(session.map(stop_session).unwrap_or_default())
+}
+
+/// Mute or unmute "Saya" (the microphone) during a meeting.
+#[tauri::command]
+pub fn set_mic_muted(state: State<'_, AppState>, muted: bool) -> bool {
+    state.mic_muted.store(muted, Ordering::Relaxed);
+    muted
 }

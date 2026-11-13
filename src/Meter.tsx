@@ -1,16 +1,11 @@
 import { meter } from "./api";
 
-export function Meter({ label, rms, peak }: { label: string; rms?: number; peak?: number }) {
-  const v = meter(rms);
-  const p = meter(peak);
+/** Compact level meter for the toolbar (transform-animated, no layout work). */
+export function Meter({ rms, peak }: { rms?: number; peak?: number }) {
   return (
-    <div className="meter">
-      <span className="meter-label">{label}</span>
-      <div className="meter-track">
-        <div className="meter-fill" style={{ width: `${v * 100}%` }} />
-        <div className="meter-peak" style={{ left: `${p * 100}%` }} />
-      </div>
-      <span className="meter-db">{rms && rms > 0 ? `${(20 * Math.log10(rms)).toFixed(0)} dB` : "—"}</span>
-    </div>
+    <span className="meter" role="meter" aria-valuemin={0} aria-valuemax={1} aria-valuenow={meter(rms)}>
+      <span className="meter-fill" style={{ transform: `scaleX(${meter(rms)})` }} />
+      <span className="meter-peak" style={{ transform: `translateX(${meter(peak) * 100}%)` }} />
+    </span>
   );
 }
