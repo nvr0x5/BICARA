@@ -183,11 +183,13 @@ pub fn transcriber(app: &AppHandle) -> Result<Arc<bicara_stt::LiveTranscriber>, 
             if lang == "en" { "Terms" } else { "Istilah" }
         );
     }
+    log::info!("loading whisper model {model} (lang={lang})");
     let handle = app.clone();
     let t = bicara_stt::LiveTranscriber::new(&path.to_string_lossy(), opts, move |u| {
         crate::assist::on_utterance(&handle, u);
     })
     .map_err(|e| e.to_string())?;
+    log::info!("whisper model loaded");
     let t = Arc::new(t);
     *slot = Some((model, vocab, t.clone()));
     Ok(t)

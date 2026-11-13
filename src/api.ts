@@ -68,6 +68,7 @@ export const modKey = isMac ? "⌘" : "Ctrl+";
 
 export const api = {
   openSettings: () => invoke<void>("open_settings_window"),
+  openLogDir: () => invoke<string>("open_log_dir"),
   setMicMuted: (muted: boolean) => invoke<boolean>("set_mic_muted", { muted }),
   listProviderModels: (provider: ProviderConfig, apiKey: string | null) =>
     invoke<{ id: string; label: string }[]>("list_provider_models", { provider, apiKey }),

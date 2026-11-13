@@ -582,7 +582,7 @@ fn translate(app: AppHandle, u: &Utterance, target: String) {
                 );
             }
             Ok(_) => {}
-            Err(e) => eprintln!("[bicara] translation failed: {e}"),
+            Err(e) => log::error!("[bicara] translation failed: {e}"),
         }
     });
 }

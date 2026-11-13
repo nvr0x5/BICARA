@@ -45,6 +45,18 @@ jobs:
         shell: bash
         run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> "$GITHUB_ENV"
 
+      # Build whisper.cpp for a common CPU baseline (AVX2, Intel 2013+/all Ryzen), not for the
+      # CI machine's own CPU: GGML_NATIVE would use e.g. AVX-512 and crash on most PCs.
+      - name: Portable CPU flags for whisper.cpp (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "GGML_NATIVE=OFF" >> "$GITHUB_ENV"
+          echo "GGML_AVX=ON" >> "$GITHUB_ENV"
+          echo "GGML_AVX2=ON" >> "$GITHUB_ENV"
+          echo "GGML_FMA=ON" >> "$GITHUB_ENV"
+          echo "GGML_F16C=ON" >> "$GITHUB_ENV"
+
       - run: pnpm install --frozen-lockfile
 
       - uses: tauri-apps/tauri-action@v0

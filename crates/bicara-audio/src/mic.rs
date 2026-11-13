@@ -45,7 +45,7 @@ impl MicCapture {
                     let ch = cfg.channels() as usize;
                     let fmt = cfg.sample_format();
                     let mut mono: Vec<f32> = Vec::with_capacity(4096);
-                    let on_err = |e| eprintln!("[bicara-mic] stream error: {e}");
+                    let on_err = |e| log::error!("[bicara-mic] stream error: {e}");
                     let stream = match fmt {
                         SampleFormat::F32 => dev.build_input_stream(
                             &cfg.into(),

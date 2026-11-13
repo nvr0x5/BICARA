@@ -83,7 +83,7 @@ fn writer_loop(
             match hound::WavWriter::create(&path, spec) {
                 Ok(w) => writer = Some(w),
                 Err(e) => {
-                    eprintln!("[bicara] cannot create {path:?}: {e}");
+                    log::error!("[bicara] cannot create {path:?}: {e}");
                     return None;
                 }
             }
@@ -167,6 +167,7 @@ pub fn start_capture(
         .join(format!("session-{ts}"));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
+    log::info!("start_capture: app={app_id:?} mic={mic}");
     // Live transcription is optional: without a model we still record.
     let (stt, warning) = match crate::models::transcriber(&app) {
         Ok(t) => (Some(t), None),
@@ -192,7 +193,12 @@ pub fn start_capture(
             None,
         );
         session.writers.push(w);
-        session.app = Some(AppCapture::start(&id, sink).map_err(|e| e.to_string())?);
+        log::info!("starting app capture for {id}");
+        session.app = Some(AppCapture::start(&id, sink).map_err(|e| {
+            log::error!("app capture failed: {e}");
+            e.to_string()
+        })?);
+        log::info!("app capture running");
     }
     if mic {
         let (sink, w) = stream_pipeline(
@@ -204,9 +210,14 @@ pub fn start_capture(
         );
         session.writers.push(w);
         let device = state.settings.lock().unwrap().mic_device.clone();
+        log::info!("starting mic capture ({device:?})");
         match MicCapture::start_with(device, sink) {
-            Ok(m) => session.mic = Some(m),
+            Ok(m) => {
+                log::info!("mic capture running");
+                session.mic = Some(m)
+            }
             Err(e) => {
+                log::error!("mic capture failed: {e}");
                 stop_session(session);
                 return Err(e.to_string());
             }

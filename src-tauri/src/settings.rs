@@ -284,3 +284,15 @@ pub async fn test_provider(
     let key = key_for(&provider, api_key);
     llm.test(&provider, key.as_deref()).await.map_err(|e| e.to_string())
 }
+
+/// Opens the folder with BICARA's log files (for bug reports).
+#[tauri::command]
+pub fn open_log_dir(app: AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    use tauri_plugin_opener::OpenerExt;
+    let dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let p = dir.to_string_lossy().into_owned();
+    app.opener().open_path(&p, None::<&str>).map_err(|e| e.to_string())?;
+    Ok(p)
+}

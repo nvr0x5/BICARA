@@ -279,6 +279,12 @@ export default function SettingsView({ settings, onSaved, tab }: { settings: Set
           {t("Simpan rekaman audio setiap meeting (transkrip & notulen selalu disimpan)")}
         </label>
         <p className="hint">{t("Semua data tersimpan lokal di komputer ini. Teks transkrip dikirim ke penyedia AI yang kamu pilih saat AI dipakai.")}</p>
+        <div className="row between">
+          <span className="hint">{t("Log aplikasi membantu saat melaporkan masalah. Isinya langkah teknis, bukan transkrip.")}</span>
+          <button className="push" onClick={() => api.openLogDir().catch((e) => setSaved(String(e)))}>
+            {t("Buka folder log")}
+          </button>
+        </div>
       </section>
       )}
 

@@ -34,11 +34,33 @@ pub struct AppState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Log files: macOS ~/Library/Logs/id.bicara.desktop/, Windows %LOCALAPPDATA%\id.bicara.desktop\logs\
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir { file_name: Some("bicara".into()) }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                ])
+                .level(log::LevelFilter::Info)
+                .max_file_size(5_000_000)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(stealth::hotkey_plugin())
         .setup(|app| {
             let handle = app.handle();
+            // Release builds abort on panic; write the panic to the log file first.
+            std::panic::set_hook(Box::new(|info| {
+                log::error!("PANIC: {info}\n{}", std::backtrace::Backtrace::force_capture());
+            }));
+            log::info!(
+                "BICARA {} starting on {} {}",
+                app.package_info().version,
+                std::env::consts::OS,
+                std::env::consts::ARCH
+            );
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let store = store::Store::open(&data_dir.join("bicara.db"))
@@ -79,6 +101,7 @@ pub fn run() {
             capture::set_mic_muted,
             capture::recordings_dir,
             menu::open_settings_window,
+            settings::open_log_dir,
             stealth::set_stealth,
             stealth::get_stealth,
             stealth::toggle_visibility,

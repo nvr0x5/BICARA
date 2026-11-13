@@ -39,6 +39,8 @@ const EN: Record<string, string> = {
   "Bahasa percakapan": "Conversation language",
   "Terjemahan langsung": "Live translation",
   "Tema": "Theme",
+  "Log aplikasi membantu saat melaporkan masalah. Isinya langkah teknis, bukan transkrip.": "App logs help when reporting a problem. They contain technical steps, not transcripts.",
+  "Buka folder log": "Open logs folder",
   "“Terbaru” ikut versi baru otomatis; versi bernomor tetap": "“Newest” follows new releases; numbered versions stay fixed",
   "Ditemukan": "Found",
   "Penyedia": "Provider",

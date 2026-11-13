@@ -53,6 +53,14 @@ The installer is not code-signed, so SmartScreen may warn: click **More info →
    - **Anthropic API**, **OpenAI**, **Groq**, **OpenRouter**, or local **Ollama / LM Studio**: paste a key or a local URL.
 3. **New meeting**: pick the meeting app (for Google Meet, pick your browser), add context files, start.
 
+### Troubleshooting
+
+BICARA writes a log file you can attach to a bug report (it contains technical steps, not transcripts).
+Open it from **Settings → Privacy → Open logs folder**, or go to:
+
+- **macOS:** `~/Library/Logs/id.bicara.desktop/bicara.log`
+- **Windows:** `%LOCALAPPDATA%\id.bicara.desktop\logs\bicara.log`
+
 ## Privacy
 
 - Audio and transcription stay on your computer. Recordings, transcripts and minutes are stored

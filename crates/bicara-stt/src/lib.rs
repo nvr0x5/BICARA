@@ -124,7 +124,7 @@ impl LiveTranscriber {
                 let mut state = match ctx.create_state() {
                     Ok(s) => s,
                     Err(e) => {
-                        eprintln!("[bicara-stt] create_state: {e}");
+                        log::error!("[bicara-stt] create_state: {e}");
                         return;
                     }
                 };
@@ -152,7 +152,7 @@ impl LiveTranscriber {
                         p.set_initial_prompt(&opts.initial_prompt);
                     }
                     if let Err(e) = state.full(p, &job.seg.samples) {
-                        eprintln!("[bicara-stt] full: {e}");
+                        log::error!("[bicara-stt] full: {e}");
                         continue;
                     }
                     let mut text = String::new();

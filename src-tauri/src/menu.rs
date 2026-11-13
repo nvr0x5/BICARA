@@ -87,7 +87,7 @@ pub fn install(app: &AppHandle) {
             }
             // On Windows the UI's own navigation replaces a window menu bar.
         }
-        Err(e) => eprintln!("[bicara] menu: {e}"),
+        Err(e) => log::error!("[bicara] menu: {e}"),
     }
 }
 
@@ -138,6 +138,6 @@ pub fn open_settings(app: &AppHandle) {
         Ok(w) => {
             let _ = w.set_focus();
         }
-        Err(e) => eprintln!("[bicara] settings window: {e}"),
+        Err(e) => log::error!("[bicara] settings window: {e}"),
     }
 }

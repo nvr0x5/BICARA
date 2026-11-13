@@ -5,6 +5,7 @@ edition = "2021"
 description = "Live speech-to-text for BICARA: resampling, VAD segmentation, whisper.cpp engine"
 
 [dependencies]
+log = "0.4"
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 
