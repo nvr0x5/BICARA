@@ -231,7 +231,7 @@ pub fn start_capture(
     })
 }
 
-fn stop_session(mut s: Session) -> Vec<String> {
+pub fn stop_session(mut s: Session) -> Vec<String> {
     // Dropping captures drops their sinks → writer channels close → writers finalize.
     s.app.take();
     s.mic.take();

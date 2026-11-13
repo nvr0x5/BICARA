@@ -73,6 +73,8 @@ struct Job {
 /// Partial (in-progress) transcripts: first after this much speech, then every `PARTIAL_STEP`.
 const PARTIAL_MIN: usize = SAMPLE_RATE as usize * 6 / 5;
 const PARTIAL_STEP: usize = SAMPLE_RATE as usize;
+/// Skip live text when a transcription takes longer than this (the worker would fall behind).
+const PARTIAL_MAX_MS: u64 = 2500;
 
 /// Owns the whisper model and transcribes segments from all streams on one worker thread
 /// (whisper is not cheap; serialising keeps the GPU/CPU from thrashing).
@@ -80,6 +82,10 @@ pub struct LiveTranscriber {
     tx: Option<Sender<Job>>,
     /// Final segments waiting for the worker; partials are only sent/run when this is 0.
     queued: Arc<AtomicUsize>,
+    /// A partial job is queued or running (at most one at a time).
+    partial_busy: Arc<std::sync::atomic::AtomicBool>,
+    /// Wall-clock ms of the last transcription; on slow CPUs live text is skipped.
+    last_ms: Arc<std::sync::atomic::AtomicU64>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -118,6 +124,11 @@ impl LiveTranscriber {
         let (tx, rx) = channel::<Job>();
         let queued = Arc::new(AtomicUsize::new(0));
         let q = queued.clone();
+        let partial_busy = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let pb = partial_busy.clone();
+        let last_ms = Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let lm = last_ms.clone();
+        log::info!("[bicara-stt] whisper ready: lang={:?} threads={}", opts.language, opts.threads);
         let worker = std::thread::Builder::new()
             .name("bicara-stt".into())
             .spawn(move || {
@@ -132,8 +143,10 @@ impl LiveTranscriber {
                     if !job.partial {
                         q.fetch_sub(1, Ordering::SeqCst);
                     } else if q.load(Ordering::SeqCst) > 0 {
+                        pb.store(false, Ordering::SeqCst);
                         continue; // stale: final work is waiting
                     }
+                    let audio_s = job.seg.samples.len() as f64 / SAMPLE_RATE as f64;
                     let t0 = std::time::Instant::now();
                     let mut p = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
                     p.set_language(opts.language.as_deref());
@@ -151,7 +164,13 @@ impl LiveTranscriber {
                     if !opts.initial_prompt.is_empty() {
                         p.set_initial_prompt(&opts.initial_prompt);
                     }
-                    if let Err(e) = state.full(p, &job.seg.samples) {
+                    let res = state.full(p, &job.seg.samples);
+                    let ms = t0.elapsed().as_millis() as u64;
+                    lm.store(ms, Ordering::Relaxed);
+                    if job.partial {
+                        pb.store(false, Ordering::SeqCst);
+                    }
+                    if let Err(e) = res {
                         log::error!("[bicara-stt] full: {e}");
                         continue;
                     }
@@ -165,7 +184,18 @@ impl LiveTranscriber {
                         }
                     }
                     let text = text.trim().to_string();
-                    if is_hallucination(&text) || (job.partial && text.len() < 3) {
+                    let skipped = is_hallucination(&text) || (job.partial && text.len() < 3);
+                    if !job.partial || skipped {
+                        log::info!(
+                            "[bicara-stt] {} {} {:.1}s audio in {} ms → {}",
+                            job.source,
+                            if job.partial { "partial" } else { "final" },
+                            audio_s,
+                            ms,
+                            if skipped { "dropped (empty/noise)".to_string() } else { format!("{} chars", text.chars().count()) }
+                        );
+                    }
+                    if skipped {
                         continue;
                     }
                     on_result(Utterance {
@@ -182,6 +212,8 @@ impl LiveTranscriber {
         Ok(Self {
             tx: Some(tx),
             queued,
+            partial_busy,
+            last_ms,
             worker: Some(worker),
         })
     }
@@ -195,6 +227,8 @@ impl LiveTranscriber {
             segmenter: Segmenter::new(),
             tx: self.tx.clone().expect("transcriber running"),
             queued: self.queued.clone(),
+            partial_busy: self.partial_busy.clone(),
+            last_ms: self.last_ms.clone(),
             buf: Vec::with_capacity(8192),
             partials: true,
             last_partial: 0,
@@ -217,6 +251,8 @@ pub struct StreamFeeder {
     segmenter: Segmenter,
     tx: Sender<Job>,
     queued: Arc<AtomicUsize>,
+    partial_busy: Arc<std::sync::atomic::AtomicBool>,
+    last_ms: Arc<std::sync::atomic::AtomicU64>,
     buf: Vec<f32>,
     partials: bool,
     /// Length (samples) of the open utterance when the last partial was sent.
@@ -250,7 +286,13 @@ impl StreamFeeder {
         for seg in segs {
             self.send_final(seg);
         }
-        if !self.partials || self.queued.load(Ordering::SeqCst) > 0 {
+        // Live text only when the worker keeps up: no final waiting, no partial in flight,
+        // and the last transcription was fast (CPU-only machines are often too slow).
+        if !self.partials
+            || self.queued.load(Ordering::SeqCst) > 0
+            || self.partial_busy.load(Ordering::SeqCst)
+            || self.last_ms.load(Ordering::Relaxed) > PARTIAL_MAX_MS
+        {
             return;
         }
         if let Some((samples, start)) = self.segmenter.open() {
@@ -265,6 +307,7 @@ impl StreamFeeder {
                     start,
                     end: start + n as f64 / SAMPLE_RATE as f64,
                 };
+                self.partial_busy.store(true, Ordering::SeqCst);
                 let _ = self.tx.send(Job {
                     source: self.source.clone(),
                     seg,

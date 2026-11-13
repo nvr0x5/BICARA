@@ -141,6 +141,23 @@ pub fn run() {
             meeting::export_meeting,
             meeting::whatsapp_share_url,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                shutdown(app);
+            }
+        });
+}
+
+/// Releases audio devices and the whisper model before the process exits. Leaving the model
+/// loaded made ggml's Metal backend abort in its static destructors ("quit unexpectedly").
+fn shutdown(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    if let Some(s) = state.session.lock().unwrap().take() {
+        capture::stop_session(s);
+    }
+    let stt = state.stt.lock().unwrap().take();
+    drop(stt); // last Arc: joins the worker thread and frees the whisper context
+    log::info!("shutdown complete");
 }
