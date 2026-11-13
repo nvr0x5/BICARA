@@ -1,0 +1,63 @@
+name: Release
+
+# Builds the macOS .dmg (Apple Silicon) and the Windows .exe installer and attaches them to a
+# GitHub release. Push a tag like v0.1.0 to run it, or start it by hand from the Actions tab.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-14
+            args: --bundles app,dmg
+          - platform: windows-latest
+            args: --bundles nsis
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      # whisper-rs generates bindings with bindgen, which needs libclang.
+      - name: Point bindgen at LLVM (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> "$GITHUB_ENV"
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: BICARA v__VERSION__
+          releaseBody: |
+            Unsigned builds for personal use.
+            - **macOS** (Apple Silicon, 14.2+): open the .dmg, drag BICARA to Applications, then right-click → Open the first time.
+            - **Windows 10/11**: run the *-setup.exe; if SmartScreen warns, click More info → Run anyway.
+            See the README for first-run steps.
+          releaseDraft: true
+          prerelease: true
+          args: ${{ matrix.args }}
