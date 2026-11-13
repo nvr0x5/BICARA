@@ -38,7 +38,14 @@ Claude or ChatGPT/Codex subscription** through their official CLIs, or on any AP
 Download the latest build from **[Releases](https://github.com/nvr0x5/BICARA/releases/latest)**.
 
 **macOS (Apple Silicon, macOS 14.2+)** — open the `.dmg` and drag BICARA to Applications.
-The app is not code-signed, so the first time **right-click BICARA → Open → Open**.
+The app is not notarized by Apple, so the first time macOS blocks it:
+open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to BICARA.
+If macOS says the app *"is damaged and can't be opened"*, clear the download quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/BICARA.app
+```
+
 On first use macOS asks for *System Audio Recording* and *Microphone* permission.
 
 **Windows 10 (2004+) / 11** — run `BICARA_x.y.z_x64-setup.exe`.
