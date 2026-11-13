@@ -4,7 +4,13 @@ members = ["src-tauri", "crates/bicara-audio", "crates/bicara-stt", "crates/bica
 
 [profile.release]
 codegen-units = 1
-lto = true
+# Full LTO drops symbols from whisper.cpp's mixed C++/Objective-C (Metal) static library.
+lto = false
 opt-level = 3
 panic = "abort"
 strip = true
+
+# Proc macros and build scripts are loaded by rustc itself; stripping them with the newer
+# Apple linker corrupts the dylibs ("mis-aligned LINKEDIT"), so keep them unstripped.
+[profile.release.build-override]
+strip = false
